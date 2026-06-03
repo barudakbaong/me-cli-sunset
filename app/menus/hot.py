@@ -48,19 +48,11 @@ def show_hot_menu():
                 pause()
                 continue
             
-            package_variants = family_data["package_variants"]
-            option_code = None
-            for variant in package_variants:
-                if variant["name"] == selected_bm["variant_name"]:
-                    selected_variant = variant
-                    
-                    package_options = selected_variant["package_options"]
-                    for option in package_options:
-                        if option["order"] == selected_bm["order"]:
-                            selected_option = option
-                            option_code = selected_option["package_option_code"]
-                            break
-            
+            from app.service.bookmark import resolve_bookmark_option_code
+            option_code = (selected_bm.get("package_option_code") or "").strip()
+            if not option_code:
+                option_code = resolve_bookmark_option_code(family_data, selected_bm)
+
             if option_code:
                 print(f"{option_code}")
                 show_package_details(api_key, tokens, option_code, is_enterprise)            

@@ -44,19 +44,27 @@ class Auth:
     def __init__(self):
         if not self._initialized_:
             self.api_key = ensure_api_key()
-            
-            if os.path.exists("refresh-tokens.json"):
-                self.load_tokens()
-            else:
-                # Create empty file
-                with open("refresh-tokens.json", "w", encoding="utf-8") as f:
-                    json.dump([], f, indent=4)
-
-            # Select active user from file if available
-            self.load_active_number()
-            self.last_refresh_time = int(time.time())
-
+            self.reload_for_current_dir()
             self._initialized_ = True
+
+    def reload_for_current_dir(self):
+        """Reset state and re-read tokens/active-user from current working dir.
+        Called by webui middleware after switching to a per-user dir."""
+        self.refresh_tokens = []
+        self.active_user = None
+        if os.path.exists("refresh-tokens.json"):
+            try:
+                self.load_tokens()
+            except Exception as e:
+                print(f"[auth.reload] load_tokens err: {e}")
+        else:
+            with open("refresh-tokens.json", "w", encoding="utf-8") as f:
+                json.dump([], f, indent=4)
+        try:
+            self.load_active_number()
+        except Exception as e:
+            print(f"[auth.reload] load_active_number err: {e}")
+        self.last_refresh_time = int(time.time())
             
     def load_tokens(self):
         with open("refresh-tokens.json", "r", encoding="utf-8") as f:
@@ -112,7 +120,7 @@ class Auth:
                 if tokens:
                     self.set_active_user(first_rt["number"])
             else:
-                input("No users left. Press Enter to continue...")
+                print("No users left.")
                 self.active_user = None
 
     def set_active_user(self, number: int):
@@ -120,13 +128,11 @@ class Auth:
         rt_entry = next((rt for rt in self.refresh_tokens if rt["number"] == number), None)
         if not rt_entry:
             print(f"No refresh token found for number: {number}")
-            input("Press Enter to continue...")
             return False
 
         tokens = get_new_token(self.api_key, rt_entry["refresh_token"], rt_entry.get("subscriber_id", ""))
         if not tokens:
             print(f"Failed to get tokens for number: {number}. The refresh token might be invalid or expired.")
-            input("Press Enter to continue...")
             return False
 
         profile_data = get_profile(self.api_key, tokens["access_token"], tokens["id_token"])
@@ -165,10 +171,8 @@ class Auth:
                 return True
             else:
                 print("Failed to renew active user token.")
-                input("Press Enter to continue...")
         else:
             print("No active user set or missing refresh token.")
-            input("Press Enter to continue...")
         return False
     
     def get_active_user(self):

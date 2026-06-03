@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Validate MSISDN · me-cli{% endblock %}
+{% block content %}
+<div class="max-w-md mx-auto">
+  <div class="card">
+    <h1 class="text-xl font-bold mb-3">✅ Validate MSISDN</h1>
+    <form action="/validate-msisdn" method="post" class="space-y-3">
+      <div><label class="label">MSISDN (628xxx)</label><input class="form-input" name="msisdn" pattern="628\d{7,11}" value="{{ msisdn or '' }}" required></div>
+      <button class="btn btn-primary w-full" type="submit">Cek</button>
+    </form>
+  </div>
+  {% if res %}
+  <div class="card mt-3">
+    <pre class="text-xs overflow-x-auto bg-slate-950 p-2 rounded">{{ res | tojson(indent=2) }}</pre>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

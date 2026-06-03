@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Notifikasi · me-cli{% endblock %}
+{% block content %}
+<h1 class="text-xl font-bold mb-4">🔔 Notifikasi</h1>
+{% if not items %}<div class="card text-slate-400">Tidak ada notifikasi.</div>{% endif %}
+<div class="space-y-2">
+{% for n in items %}
+<a class="card block" href="/notifications/{{ n.notification_id or n.id or '' }}">
+  <div class="font-medium">{{ n.title or n.subject or n.name or "-" }}</div>
+  <div class="text-sm text-slate-300 mt-1">{{ n.content or n.body or n.description or "" }}</div>
+  <div class="text-xs text-slate-500 mt-1">{{ n.created_at or n.date or "" }}</div>
+</a>
+{% endfor %}
+</div>
+<details class="mt-4 card">
+  <summary class="cursor-pointer text-slate-400">Raw</summary>
+  <pre class="text-xs overflow-x-auto bg-slate-950 p-2 rounded mt-2">{{ raw | tojson(indent=2) }}</pre>
+</details>
+{% endblock %}

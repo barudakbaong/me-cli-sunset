@@ -1,0 +1,297 @@
+{% extends "base.html" %}
+{% block title %}Monitoring · me-cli{% endblock %}
+{% block content %}
+
+{% set msg = request.query_params.get('msg', '') %}
+{% if msg == 'refreshed' %}
+<div class="mb-4 px-4 py-3 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-sm">Data kuota berhasil di-refresh.</div>
+{% elif msg == 'rule_added' %}
+<div class="mb-4 px-4 py-3 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-sm">Rule berhasil ditambahkan.</div>
+{% elif msg == 'rule_deleted' %}
+<div class="mb-4 px-4 py-3 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-300 text-sm">Rule dihapus.</div>
+{% elif msg == 'ran' %}
+<div class="mb-4 px-4 py-3 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-sm">Monitor run-once selesai. Cek log di bawah.</div>
+{% endif %}
+
+<!-- Header -->
+<div class="flex items-center justify-between mb-6">
+  <h1 class="text-xl font-bold text-white">Monitoring</h1>
+  <div class="flex gap-2">
+    <form action="/monitoring/refresh" method="post">
+      <button type="submit" class="btn btn-secondary text-xs px-3 py-1.5">Refresh Data</button>
+    </form>
+    <form action="/monitoring/run-once" method="post">
+      <button type="submit" class="btn btn-primary text-xs px-3 py-1.5">Run Once</button>
+    </form>
+    <a href="/monitoring/telegram" class="btn btn-secondary text-xs px-3 py-1.5">Telegram Settings</a>
+  </div>
+</div>
+
+<!-- Telegram Status -->
+<div class="mb-6 p-4 rounded-xl bg-slate-900 border border-slate-800">
+  <div class="flex items-center gap-3">
+    <div class="text-2xl">🤖</div>
+    <div>
+      <div class="text-sm font-semibold text-white">Telegram Bot</div>
+      {% if tg_global.get('enabled') and tg_global.get('bot_token') %}
+        <span class="text-xs text-emerald-400">Aktif</span>
+      {% else %}
+        <span class="text-xs text-slate-500">Nonaktif — <a href="/monitoring/telegram" class="text-indigo-400 hover:underline">Setup</a></span>
+      {% endif %}
+      {% if tg.get('chat_id') %}
+        <span class="text-xs text-slate-400 ml-2">· Chat ID: <code>{{ tg.chat_id }}</code></span>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Account Status Cards -->
+<section class="mb-6">
+  <h2 class="text-sm uppercase tracking-wider text-slate-400 mb-3">Status Akun</h2>
+  {% if cache %}
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    {% for msisdn, data in cache.items() %}
+    <div class="p-4 rounded-xl bg-slate-900 border border-slate-800">
+      <div class="flex items-center justify-between mb-3">
+        <div class="font-mono text-sm font-bold text-white">{{ msisdn }}</div>
+        {% if data.updated_at %}
+        <div class="text-xs text-slate-500">{{ data.updated_at | ts }}</div>
+        {% endif %}
+      </div>
+
+      {% if data.balance %}
+      <div class="mb-3 p-2 rounded-lg bg-indigo-500/10 border border-indigo-500/20">
+        <div class="text-xs text-indigo-300">Pulsa</div>
+        <div class="font-bold text-white">
+          {% if data.balance.remaining is not none %}{{ data.balance.remaining | rp }}{% else %}—{% endif %}
+        </div>
+        {% if data.balance.expired_at %}
+        <div class="text-xs text-slate-400">Aktif s/d {{ data.balance.expired_at | date }}</div>
+        {% endif %}
+      </div>
+      {% endif %}
+
+      {% if data.quotas %}
+      <div class="space-y-2">
+        {% for q in data.quotas[:6] %}
+        <div class="p-2 rounded-lg bg-slate-800/60">
+          <div class="text-xs font-medium text-slate-200 mb-1">{{ q.name or '-' }}</div>
+          {% for b in (q.benefits or [])[:3] %}
+          {% set rem = b.remaining or 0 %}
+          {% set tot = b.total or 0 %}
+          {% set pct = ((rem / tot) * 100) if tot else 0 %}
+          <div class="flex items-center gap-2 mb-1">
+            <div class="flex-1">
+              <div class="h-1.5 rounded-full bg-slate-700 overflow-hidden">
+                <div class="h-full rounded-full {% if pct > 50 %}bg-emerald-400{% elif pct > 20 %}bg-amber-400{% else %}bg-red-400{% endif %}" style="width:{{ [pct, 100]|min }}%"></div>
+              </div>
+            </div>
+            <div class="text-xs text-slate-400 w-20 text-right">
+              {% if b.data_type == 'DATA' %}{{ rem | bytes }}/{{ tot | bytes }}{% elif b.data_type == 'VOICE' %}{{ (rem/60)|int }}m{% else %}{{ rem }}{% endif %}
+              <span class="text-slate-600">({{ "%.0f"|format(pct) }}%)</span>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="text-xs text-slate-500">(belum ada data kuota)</div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="p-6 text-center text-slate-500 bg-slate-900 border border-slate-800 rounded-xl">
+    Belum ada data. Klik <b>Refresh Data</b> untuk mengambil kuota terbaru.
+  </div>
+  {% endif %}
+</section>
+
+<!-- Rules -->
+<section class="mb-6">
+  <div class="flex items-center justify-between mb-3">
+    <h2 class="text-sm uppercase tracking-wider text-slate-400">Monitoring Rules</h2>
+  </div>
+
+  {% if rules %}
+  <div class="space-y-2 mb-4">
+    {% for r in rules %}
+    <div class="p-3 rounded-xl bg-slate-900 border border-slate-800 {% if not r.enabled %}opacity-50{% endif %}">
+      <div class="flex items-center justify-between">
+        <div>
+          <span class="font-medium text-sm text-white">{{ r.name or 'Untitled' }}</span>
+          <span class="text-xs text-slate-500 ml-2">{{ r.msisdn }}</span>
+          {% if r.last_status %}
+          <span class="text-xs ml-2 {% if r.last_status == 'ok' %}text-emerald-400{% elif r.last_status == 'error' %}text-red-400{% else %}text-amber-400{% endif %}">
+            {{ r.last_status }}
+          </span>
+          {% endif %}
+        </div>
+        <div class="flex gap-1">
+          <form action="/monitoring/rules/{{ r.id }}/toggle" method="post" data-no-loader>
+            <button type="submit" class="text-xs px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300" title="{% if r.enabled %}Disable{% else %}Enable{% endif %}">
+              {% if r.enabled %}ON{% else %}OFF{% endif %}
+            </button>
+          </form>
+          <form action="/monitoring/rules/{{ r.id }}/delete" method="post" data-confirm="Hapus rule '{{ r.name }}'?" data-confirm-variant="danger">
+            <button type="submit" class="text-xs px-2 py-1 rounded bg-red-900/30 hover:bg-red-900/50 text-red-400">Del</button>
+          </form>
+        </div>
+      </div>
+      <div class="text-xs text-slate-500 mt-1">
+        {{ r.match.kind }}{% if r.match.value %}: {{ r.match.value }}{% endif %}
+        · {{ r.trigger.metric }} {{ r.trigger.op }} {{ r.trigger.value }}
+        · cooldown {{ r.cooldown_seconds }}s
+        {% if r.last_fired_at %}· last fired {{ r.last_fired_at | ts }}{% endif %}
+      </div>
+      {% if r.last_msg %}
+      <div class="text-xs text-slate-400 mt-1 truncate">{{ r.last_msg }}</div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="p-4 text-center text-slate-500 bg-slate-900 border border-slate-800 rounded-xl mb-4">
+    Belum ada rule. Tambah rule di bawah.
+  </div>
+  {% endif %}
+
+  <!-- Add Rule Form -->
+  <details class="bg-slate-900 border border-slate-800 rounded-xl">
+    <summary class="cursor-pointer px-4 py-3 text-sm font-medium text-indigo-300 hover:text-indigo-200">+ Tambah Rule Baru</summary>
+    <form action="/monitoring/rules" method="post" class="p-4 border-t border-slate-800 space-y-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label class="text-xs text-slate-400">Nama Rule</label>
+          <input name="name" class="w-full mt-1 bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-white" placeholder="Kuota rendah alert">
+        </div>
+        <div>
+          <label class="text-xs text-slate-400">MSISDN</label>
+          <select name="msisdn" class="w-full mt-1 bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-white">
+            {% for acc in myxl_accounts %}
+            <option value="{{ acc.number }}">{{ acc.number }} · {{ acc.subscription_type or '?' }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div>
+          <label class="text-xs text-slate-400">Match Kind</label>
+          <select name="match_kind" class="w-full mt-1 bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-white">
+            <option value="any">Any Quota</option>
+            <option value="quota_name">Quota Name (contains)</option>
+            <option value="quota_code">Quota Code (exact)</option>
+            <option value="group_name">Group Name (contains)</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-xs text-slate-400">Match Value</label>
+          <input name="match_value" class="w-full mt-1 bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-white" placeholder="(kosongkan untuk any)">
+        </div>
+        <div>
+          <label class="text-xs text-slate-400">Data Type</label>
+          <select name="match_data_type" class="w-full mt-1 bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-white">
+            <option value="ANY">Any</option>
+            <option value="DATA">Data</option>
+            <option value="VOICE">Voice</option>
+            <option value="TEXT">Text/SMS</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div>
+          <label class="text-xs text-slate-400">Trigger Metric</label>
+          <select name="trigger_metric" class="w-full mt-1 bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-white">
+            <option value="remaining_pct">Remaining %</option>
+            <option value="remaining_bytes">Remaining Bytes</option>
+            <option value="remaining_minutes">Remaining Minutes</option>
+            <option value="expiring_in_days">Expiring in Days</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-xs text-slate-400">Operator</label>
+          <select name="trigger_op" class="w-full mt-1 bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-white">
+            <option value="lt">&lt; (less than)</option>
+            <option value="lte">&lt;= (less or equal)</option>
+            <option value="gt">&gt; (greater than)</option>
+            <option value="gte">&gt;= (greater or equal)</option>
+            <option value="eq">= (equal)</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-xs text-slate-400">Value</label>
+          <input name="trigger_value" type="number" value="10" class="w-full mt-1 bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-white">
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label class="text-xs text-slate-400">Action Type</label>
+          <select name="action_type" id="action_type" class="w-full mt-1 bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-white" onchange="toggleActionFields()">
+            <option value="telegram">Kirim Telegram</option>
+            <option value="buy_option">Beli Paket (Auto-buy)</option>
+            <option value="unsubscribe">Unsubscribe</option>
+            <option value="telegram_and_buy">Telegram + Auto-buy</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-xs text-slate-400">Cooldown (detik)</label>
+          <input name="cooldown_seconds" type="number" value="3600" class="w-full mt-1 bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-white">
+        </div>
+      </div>
+
+      <div id="tg_fields">
+        <label class="text-xs text-slate-400">Pesan Telegram</label>
+        <textarea name="action_message" rows="2" class="w-full mt-1 bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-white" placeholder="Kuota {quota} tinggal {pct}% ({remaining}/{total})"></textarea>
+        <div class="text-xs text-slate-500 mt-1">Placeholder: {quota}, {benefit}, {pct}, {remaining}, {total}, {msisdn}</div>
+      </div>
+
+      <div id="buy_fields" class="hidden">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="text-xs text-slate-400">Option Code</label>
+            <input name="action_option_code" class="w-full mt-1 bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-white" placeholder="U0Nf...">
+          </div>
+          <div>
+            <label class="text-xs text-slate-400">Payment Method</label>
+            <select name="action_method" class="w-full mt-1 bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-white">
+              <option value="balance">Balance (Pulsa)</option>
+              <option value="qris">QRIS</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-primary text-sm px-4 py-2">Simpan Rule</button>
+    </form>
+  </details>
+</section>
+
+<!-- Log -->
+<section>
+  <details class="bg-slate-900 border border-slate-800 rounded-xl">
+    <summary class="cursor-pointer px-4 py-3 text-sm font-medium text-slate-300 hover:text-white">Monitor Log ({{ log_lines|length }} baris terakhir)</summary>
+    <div class="p-4 border-t border-slate-800 max-h-96 overflow-y-auto">
+      {% if log_lines %}
+      <pre class="text-xs text-slate-400 font-mono whitespace-pre-wrap">{% for l in log_lines %}{{ l }}
+{% endfor %}</pre>
+      {% else %}
+      <div class="text-sm text-slate-500">Log kosong.</div>
+      {% endif %}
+    </div>
+  </details>
+</section>
+
+<script>
+function toggleActionFields() {
+  const t = document.getElementById('action_type').value;
+  const tgF = document.getElementById('tg_fields');
+  const buyF = document.getElementById('buy_fields');
+  tgF.classList.toggle('hidden', t === 'buy_option' || t === 'unsubscribe');
+  buyF.classList.toggle('hidden', t === 'telegram' || t === 'unsubscribe');
+}
+</script>
+{% endblock %}

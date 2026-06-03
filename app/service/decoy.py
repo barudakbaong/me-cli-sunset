@@ -85,36 +85,47 @@ class DecoyPackage:
         if active_user is None:
             print("No active user. Cannot fetch decoy package.")
             return None
-        
+
         api_key = AuthInstance.api_key
         tokens = active_user["tokens"]
-        
+
         path = self.decoy_base_path + decoy_name + ".json"
 
         try:
             print(f"Refreshing decoy data for: {decoy_name}")
-            
+
             decoy = {}
             with open(path, "r", encoding="utf-8") as f:
                 decoy = json.load(f)
-            
+
             decoy_data = decoy
-            decoy_package_detail = get_package_details(
-                api_key,
-                tokens,
-                decoy_data["family_code"],
-                decoy_data["variant_code"],
-                decoy_data["order"],
-                decoy_data["is_enterprise"],
-                decoy_data["migration_type"],
-            )
-            
+            # Try with stored values first; if that fails, fall back to None/None
+            # which makes get_family iterate all (is_enterprise × migration_type) combos.
+            attempts = [
+                (decoy_data.get("is_enterprise", False), decoy_data.get("migration_type", "NONE")),
+                (None, None),
+            ]
+            decoy_package_detail = None
+            for ie, mt in attempts:
+                decoy_package_detail = get_package_details(
+                    api_key, tokens,
+                    decoy_data["family_code"],
+                    decoy_data["variant_code"],
+                    decoy_data["order"],
+                    ie, mt,
+                )
+                if decoy_package_detail:
+                    break
+            if not decoy_package_detail:
+                print(f"Decoy {decoy_name}: server rejected all (is_enterprise × migration_type) combos.")
+                return
+
             self.decoys[decoy_name] = {
                 "option_code": decoy_package_detail["package_option"]["package_option_code"],
                 "last_fetched_at": int(time.time()),
                 "price": decoy_data["price"]
             }
-            
+
             print(f"Decoy data for {decoy_name} refreshed successfully.")
         except Exception as e:
             print(f"Error fetching decoy data: {e}")

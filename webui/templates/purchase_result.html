@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} · me-cli{% endblock %}
+{% block content %}
+<h1 class="text-xl font-bold mb-4">{{ title }}</h1>
+{% if qris_img %}
+<div class="card mb-4 text-center">
+  <img src="{{ qris_img }}" alt="QRIS" class="mx-auto bg-white p-2 rounded" style="max-width:320px">
+  <div class="text-xs text-slate-400 mt-2">Scan QRIS dengan app m-banking / dompet digital</div>
+  {% if result.qr_code %}
+  <details class="mt-3 text-left text-xs">
+    <summary class="cursor-pointer text-slate-400">Raw QR string</summary>
+    <pre class="overflow-x-auto bg-slate-950 p-2 rounded mt-1">{{ result.qr_code }}</pre>
+  </details>
+  {% endif %}
+</div>
+{% endif %}
+{% if result and (result.status == "SUCCESS" or (result.qr_code is defined)) %}
+<div class="alert-success">✅ Transaksi terkirim</div>
+{% elif result %}
+<div class="alert-error">⚠️ Transaksi tidak SUCCESS</div>
+{% endif %}
+<div class="card">
+  <h2 class="font-bold mb-2">Detail</h2>
+  <pre class="text-xs overflow-x-auto bg-slate-950 p-2 rounded">{{ result | tojson(indent=2) }}</pre>
+</div>
+<div class="mt-4 flex gap-2">
+  <a class="btn btn-secondary" href="/">Beranda</a>
+  <a class="btn btn-secondary" href="/transactions">Riwayat</a>
+</div>
+{% endblock %}

@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}Notifikasi · me-cli{% endblock %}
+{% block content %}
+<a href="/notifications" class="text-sm text-slate-400 hover:text-slate-200">← Kembali</a>
+<h1 class="text-xl font-bold mt-2 mb-4">Detail Notifikasi</h1>
+<div class="card">
+  <pre class="text-xs overflow-x-auto bg-slate-950 p-2 rounded">{{ data | tojson(indent=2) }}</pre>
+</div>
+{% endblock %}

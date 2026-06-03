@@ -11,3 +11,15 @@ refresh-tokens*
 ax.fp
 bookmark.json
 active.number
+
+# Web UI runtime & secrets (per-user)
+webui_data/
+monitor.log
+session.secret
+
+# Python venv
+venv/
+
+# Local decoy overrides (seed templates stay tracked; per-user copies live in webui_data)
+# Uncomment if you never want to commit decoy_data edits:
+# decoy_data/

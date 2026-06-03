@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}me-cli-sunset{% endblock %}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/htmx.org@1.9.12" integrity="sha384-ujb1lZYygJmzgSwoxRggbCHcjc0rB2XoQrxeTUQyRjrOnlCoYta87iKBWq3EsdM2" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/htmx.org@1.9.12/dist/ext/sse.js"></script>
+  <link rel="stylesheet" href="/static/css/custom.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E📶%3C/text%3E%3C/svg%3E">
+  <script>
+    tailwind.config = { theme: { extend: {
+      colors: { brand: { 50:'#eef2ff',400:'#818cf8',500:'#6366f1',600:'#4f46e5',700:'#4338ca'}}
+    } } }
+  </script>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen antialiased">
+
+<!-- GLOBAL LOADER -->
+<div id="page-loader" class="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-sm flex items-center justify-center pointer-events-none" style="opacity:0; transition: opacity 150ms ease;">
+  <div class="flex flex-col items-center gap-4 px-6 text-center">
+    <div class="relative w-16 h-16">
+      <div class="absolute inset-0 rounded-full border-4 border-slate-700"></div>
+      <div class="absolute inset-0 rounded-full border-4 border-transparent border-t-indigo-400 animate-spin"></div>
+    </div>
+    <div id="page-loader-msg" class="text-sm text-slate-300">Memuat…</div>
+    <div class="text-xs text-slate-500">Tunggu sebentar ya cuy</div>
+  </div>
+</div>
+
+<!-- CONFIRM MODAL -->
+<div id="confirm-modal" class="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4 pointer-events-none" style="opacity:0; transition: opacity 150ms ease;">
+  <div id="confirm-backdrop" class="absolute inset-0 bg-slate-950/70 backdrop-blur-sm"></div>
+  <div id="confirm-panel" class="relative bg-slate-900 border border-slate-700 rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-md transform translate-y-4 sm:translate-y-0 transition-transform duration-150">
+    <div class="p-5 sm:p-6">
+      <div class="flex items-start gap-3">
+        <div id="confirm-icon" class="w-11 h-11 rounded-full flex items-center justify-center text-xl shrink-0 bg-amber-500/15 text-amber-300 border border-amber-500/30">⚠️</div>
+        <div class="min-w-0 flex-1">
+          <h3 id="confirm-title" class="font-bold text-base sm:text-lg text-slate-100 leading-snug">Konfirmasi</h3>
+          <div id="confirm-message" class="text-sm text-slate-300 mt-1 leading-relaxed">Yakin mau lanjut?</div>
+        </div>
+      </div>
+      <div id="confirm-detail-wrap" class="mt-4 hidden">
+        <div id="confirm-detail" class="text-xs text-slate-400 bg-slate-950/60 border border-slate-800 rounded-lg p-3 font-mono break-all"></div>
+      </div>
+      <div class="flex gap-2 mt-5 justify-end">
+        <button type="button" id="confirm-cancel" class="btn btn-secondary text-sm px-4">Batal</button>
+        <button type="button" id="confirm-ok" class="btn btn-primary text-sm px-4">Lanjut</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% set sections = [
+  {'label':'Beranda','icon':'🏠','href':'/'},
+  {'label':'Paket Saya','icon':'📦','href':'/packages/my'},
+  {'group':'Beli Paket','items':[
+    {'label':'🔥 Hot','href':'/hot'},
+    {'label':'🔥🔥 Hot-2','href':'/hot2'},
+    {'label':'By Option','href':'/packages/by-option'},
+    {'label':'By Family','href':'/packages/by-family'},
+    {'label':'Loop Family','href':'/purchase/family-loop'},
+    {'label':'🔖 Bookmark','href':'/bookmark'},
+  ]},
+  {'group':'Komunitas','items':[
+    {'label':'🏠 Akrab','href':'/family-plan'},
+    {'label':'⭕ Circle','href':'/circle'},
+  ]},
+  {'group':'Toko','items':[
+    {'label':'Segments','href':'/store/segments'},
+    {'label':'Families','href':'/store/families'},
+    {'label':'All Packages','href':'/store/packages'},
+    {'label':'🎁 Redemables','href':'/store/redemables'},
+  ]},
+  {'group':'Lainnya','items':[
+    {'label':'🧾 Transaksi','href':'/transactions'},
+    {'label':'🔔 Notifikasi','href':'/notifications'},
+    {'label':'📝 Register','href':'/register'},
+    {'label':'✅ Validate MSISDN','href':'/validate-msisdn'},
+  ]},
+  {'group':'Settings','items':[
+    {'label':'📡 Monitoring','href':'/monitoring'},
+    {'label':'🤖 Telegram','href':'/monitoring/telegram'},
+    {'label':'⚙️ Decoy','href':'/settings/decoy'},
+  ]},
+] %}
+{% set path = request.url.path %}
+
+<!-- TOPBAR -->
+<header class="bg-slate-900/70 backdrop-blur border-b border-slate-800 sticky top-0 z-30">
+  <div class="flex items-center justify-between px-4 h-14 lg:pl-72">
+    <div class="flex items-center gap-3">
+      <button id="nav-toggle" class="lg:hidden text-slate-300 hover:text-white" aria-label="menu">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <a href="/" class="font-bold text-lg bg-gradient-to-r from-indigo-400 to-fuchsia-400 bg-clip-text text-transparent">⚡ me-cli</a>
+    </div>
+    <div class="flex items-center gap-2 text-sm">
+      {% if active_user %}
+        <form action="/accounts/activate" method="post" class="hidden sm:flex" data-no-loader>
+          <select name="number" class="bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs" onchange="this.form.submit()">
+            {% for u in accounts %}
+              <option value="{{ u.number }}" {% if u.number == active_user.number %}selected{% endif %}>{{ u.number }} · {{ u.subscription_type or '?' }}</option>
+            {% endfor %}
+          </select>
+        </form>
+        <a href="/accounts" class="text-slate-300 hover:text-white text-xs sm:text-sm">📱 {{ active_user.number }}</a>
+      {% endif %}
+      {% if webui_user %}
+        <span class="hidden sm:inline text-slate-600">·</span>
+        <span class="text-xs text-slate-400 hidden sm:inline">👤 <b class="text-slate-200">{{ webui_user.username }}</b></span>
+        <a href="/u/logout" class="text-xs text-slate-400 hover:text-red-300" title="Logout WebUI">⏻</a>
+      {% else %}
+        <a href="/u/login" class="btn btn-primary text-xs">Login</a>
+      {% endif %}
+    </div>
+  </div>
+</header>
+
+<!-- SIDEBAR (desktop) + DRAWER (mobile) -->
+<aside id="sidebar" class="fixed inset-y-0 left-0 w-64 bg-slate-900 border-r border-slate-800 z-40 transform -translate-x-full lg:translate-x-0 transition-transform overflow-y-auto">
+  <div class="p-4 border-b border-slate-800 hidden lg:block">
+    <div class="font-bold text-lg bg-gradient-to-r from-indigo-400 to-fuchsia-400 bg-clip-text text-transparent">⚡ me-cli</div>
+    <div class="text-xs text-slate-500">myXL CLI · WebUI</div>
+  </div>
+  <nav class="p-3 space-y-1">
+    {% for sec in sections %}
+      {% if sec.group %}
+        <div class="text-xs uppercase tracking-wider text-slate-500 mt-4 mb-1 px-2">{{ sec.group }}</div>
+        {% for it in sec['items'] %}
+          <a href="{{ it.href }}" class="block px-3 py-2 rounded text-sm transition-colors {% if path == it.href or (it.href != '/' and path.startswith(it.href)) %}bg-indigo-600/30 text-indigo-200 border border-indigo-500/40{% else %}text-slate-300 hover:bg-slate-800 hover:text-white{% endif %}">{{ it.label }}</a>
+        {% endfor %}
+      {% else %}
+        <a href="{{ sec.href }}" class="block px-3 py-2 rounded text-sm transition-colors {% if path == sec.href %}bg-indigo-600/30 text-indigo-200 border border-indigo-500/40{% else %}text-slate-300 hover:bg-slate-800 hover:text-white{% endif %}">{{ sec.icon }} {{ sec.label }}</a>
+      {% endif %}
+    {% endfor %}
+  </nav>
+  <div class="p-4 text-xs text-slate-600 border-t border-slate-800 mt-4">
+    {% if webui_user %}
+    <div class="mb-2 p-2 bg-slate-800/60 rounded">
+      <div class="text-slate-400">Login sebagai:</div>
+      <div class="font-mono text-slate-200">{{ webui_user.username }}</div>
+      <a href="/u/logout" class="text-red-400 hover:text-red-300 mt-1 inline-block">⏻ Logout</a>
+    </div>
+    {% endif %}
+    <div>v1.0 · port 8089</div>
+    <div class="mt-1"><a href="https://github.com/purplemashu/me-cli-sunset" class="hover:text-slate-400" target="_blank">repo upstream ↗</a></div>
+  </div>
+</aside>
+
+<!-- Backdrop -->
+<div id="nav-backdrop" class="lg:hidden fixed inset-0 bg-black/50 z-30 hidden"></div>
+
+<!-- MAIN -->
+<main class="lg:pl-64 pb-20 lg:pb-8">
+  <div class="px-4 py-6 max-w-5xl mx-auto">
+    {% block content %}{% endblock %}
+  </div>
+</main>
+
+<!-- BOTTOM NAV (mobile) -->
+<nav class="lg:hidden fixed bottom-0 inset-x-0 bg-slate-900/95 backdrop-blur border-t border-slate-800 z-30">
+  <div class="grid grid-cols-5 text-xs">
+    <a href="/" class="flex flex-col items-center py-2 {% if path == '/' %}text-indigo-300{% else %}text-slate-400{% endif %}"><span class="text-base">🏠</span>Home</a>
+    <a href="/packages/my" class="flex flex-col items-center py-2 {% if path == '/packages/my' %}text-indigo-300{% else %}text-slate-400{% endif %}"><span class="text-base">📦</span>Paket</a>
+    <a href="/hot" class="flex flex-col items-center py-2 {% if path == '/hot' %}text-indigo-300{% else %}text-slate-400{% endif %}"><span class="text-base">🔥</span>Hot</a>
+    <a href="/transactions" class="flex flex-col items-center py-2 {% if path == '/transactions' %}text-indigo-300{% else %}text-slate-400{% endif %}"><span class="text-base">🧾</span>History</a>
+    <a href="/accounts" class="flex flex-col items-center py-2 {% if path == '/accounts' %}text-indigo-300{% else %}text-slate-400{% endif %}"><span class="text-base">👤</span>Akun</a>
+  </div>
+</nav>
+
+<script>
+(function(){
+  const sb = document.getElementById('sidebar'),
+        bd = document.getElementById('nav-backdrop'),
+        bt = document.getElementById('nav-toggle');
+  function open(){ sb.classList.remove('-translate-x-full'); bd.classList.remove('hidden'); }
+  function close(){ sb.classList.add('-translate-x-full'); bd.classList.add('hidden'); }
+  bt && bt.addEventListener('click', open);
+  bd && bd.addEventListener('click', close);
+})();
+
+// ===== Confirm Modal =====
+// Use by adding `data-confirm="Yakin mau lanjut?"` on a <form> or <a>.
+// Optional attrs: data-confirm-title, data-confirm-ok (button text),
+//                 data-confirm-detail (extra mono text), data-confirm-variant ("danger"/"warning"/"primary").
+(function(){
+  const modal = document.getElementById('confirm-modal');
+  if (!modal) return;
+  const backdrop = document.getElementById('confirm-backdrop'),
+        panel = document.getElementById('confirm-panel'),
+        iconEl = document.getElementById('confirm-icon'),
+        titleEl = document.getElementById('confirm-title'),
+        msgEl = document.getElementById('confirm-message'),
+        detailWrap = document.getElementById('confirm-detail-wrap'),
+        detailEl = document.getElementById('confirm-detail'),
+        okBtn = document.getElementById('confirm-ok'),
+        cancelBtn = document.getElementById('confirm-cancel');
+  let pending = null;
+  const VARIANTS = {
+    danger:  { icon:'🗑️', iconCls:'bg-red-500/15 text-red-300 border-red-500/30',         okCls:'btn-danger',   okText:'Hapus' },
+    warning: { icon:'⚠️', iconCls:'bg-amber-500/15 text-amber-300 border-amber-500/30',   okCls:'btn-primary',  okText:'Lanjut' },
+    primary: { icon:'✨', iconCls:'bg-indigo-500/15 text-indigo-300 border-indigo-500/30', okCls:'btn-primary', okText:'Lanjut' },
+    pay:     { icon:'💸', iconCls:'bg-emerald-500/15 text-emerald-300 border-emerald-500/30', okCls:'btn-primary', okText:'Bayar' },
+    otp:     { icon:'📩', iconCls:'bg-sky-500/15 text-sky-300 border-sky-500/30',         okCls:'btn-primary',  okText:'Kirim OTP' },
+  };
+  function applyVariant(v) {
+    const cfg = VARIANTS[v] || VARIANTS.warning;
+    iconEl.className = 'w-11 h-11 rounded-full flex items-center justify-center text-xl shrink-0 border ' + cfg.iconCls;
+    iconEl.textContent = cfg.icon;
+    okBtn.className = 'btn ' + cfg.okCls + ' text-sm px-4';
+    return cfg;
+  }
+  function show({title, message, detail, variant, okText, cancelText}, onOk, onCancel) {
+    const cfg = applyVariant(variant);
+    titleEl.textContent = title || 'Konfirmasi';
+    msgEl.innerHTML = message || 'Yakin mau lanjut?';
+    if (detail) { detailEl.textContent = detail; detailWrap.classList.remove('hidden'); }
+    else { detailWrap.classList.add('hidden'); }
+    okBtn.textContent = okText || cfg.okText;
+    cancelBtn.textContent = cancelText || 'Batal';
+    pending = { onOk, onCancel };
+    modal.style.opacity = '1';
+    modal.classList.remove('pointer-events-none');
+    panel.style.transform = 'translateY(0)';
+    // focus for keyboard
+    setTimeout(() => okBtn.focus(), 50);
+  }
+  function hide(cancelled) {
+    modal.style.opacity = '0';
+    modal.classList.add('pointer-events-none');
+    panel.style.transform = '';
+    const p = pending; pending = null;
+    if (p && cancelled && p.onCancel) p.onCancel();
+  }
+  okBtn.addEventListener('click', () => {
+    const p = pending; pending = null;
+    modal.style.opacity = '0';
+    modal.classList.add('pointer-events-none');
+    if (p && p.onOk) p.onOk();
+  });
+  cancelBtn.addEventListener('click', () => hide(true));
+  backdrop.addEventListener('click', () => hide(true));
+  document.addEventListener('keydown', e => {
+    if (modal.style.opacity === '1') {
+      if (e.key === 'Escape') hide(true);
+      else if (e.key === 'Enter') okBtn.click();
+    }
+  });
+  window.__confirm = show;
+
+  function interpolateForm(template, form) {
+    if (!template || !form) return template;
+    // Replace {field:name} with form input value (escaped)
+    return template.replace(/\{field:([\w-]+)\}/g, (_, name) => {
+      const inp = form.elements && form.elements[name];
+      if (!inp) return '';
+      const v = (inp.value || '').toString();
+      const div = document.createElement('div');
+      div.textContent = v;
+      return div.innerHTML;
+    });
+  }
+  function readAttrs(el, form) {
+    const f = form || (el instanceof HTMLFormElement ? el : null);
+    return {
+      message: interpolateForm(el.getAttribute('data-confirm'), f),
+      title: el.getAttribute('data-confirm-title'),
+      detail: interpolateForm(el.getAttribute('data-confirm-detail'), f),
+      variant: el.getAttribute('data-confirm-variant'),
+      okText: el.getAttribute('data-confirm-ok'),
+      cancelText: el.getAttribute('data-confirm-cancel'),
+    };
+  }
+
+  // Intercept form submits with data-confirm
+  document.addEventListener('submit', function(e){
+    const f = e.target;
+    if (!(f instanceof HTMLFormElement)) return;
+    if (!f.hasAttribute('data-confirm')) return;
+    if (f.dataset.__confirmed) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    show(readAttrs(f),
+      () => { f.dataset.__confirmed = '1'; f.requestSubmit ? f.requestSubmit() : f.submit(); },
+      null);
+  }, true);
+
+  // Intercept link clicks with data-confirm
+  document.addEventListener('click', function(e){
+    const a = e.target.closest('a[data-confirm]');
+    if (!a) return;
+    if (a.dataset.__confirmed) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    const attrs = readAttrs(a);
+    show(attrs,
+      () => {
+        a.dataset.__confirmed = '1';
+        if (window.__loader) window.__loader.show('Memproses…');
+        // double-RAF to let loader paint, then navigate
+        requestAnimationFrame(() => requestAnimationFrame(() => { window.location.href = a.href; }));
+      },
+      null);
+  }, true);
+})();
+
+// Global loader: show on form submit + internal nav clicks; hide on pageshow (incl. bfcache restore)
+(function(){
+  const loader = document.getElementById('page-loader');
+  const msg = document.getElementById('page-loader-msg');
+  if (!loader) return;
+  let timer = null;
+
+  function show(text) {
+    if (text) msg.textContent = text;
+    // Instant show (no transition) for perceived responsiveness
+    loader.style.transition = 'none';
+    loader.style.opacity = '1';
+    loader.classList.remove('pointer-events-none');
+  }
+  function hide() {
+    // Fade out smoothly
+    loader.style.transition = 'opacity 150ms ease';
+    loader.style.opacity = '0';
+    loader.classList.add('pointer-events-none');
+    if (timer) { clearTimeout(timer); timer = null; }
+  }
+  // Expose for inline use
+  window.__loader = { show, hide };
+
+  // Hide on page load / bfcache restore
+  window.addEventListener('pageshow', hide);
+  document.addEventListener('DOMContentLoaded', hide);
+
+  // Default messages based on action
+  function describe(actionUrl, method) {
+    const u = (actionUrl || '').toLowerCase();
+    if (u.includes('/login/request-otp')) return 'Mengirim OTP…';
+    if (u.includes('/login/submit-otp')) return 'Verifikasi OTP…';
+    if (u.includes('/purchase/family-loop')) return 'Memulai bulk purchase…';
+    if (u.startsWith('/purchase/')) return 'Memproses pembelian…';
+    if (u.includes('/family-plan')) return 'Memproses family plan…';
+    if (u.includes('/circle')) return 'Memproses Circle…';
+    if (u.includes('/bookmark')) return 'Update bookmark…';
+    if (u.includes('/unsubscribe')) return 'Unsubscribe paket…';
+    if (u.includes('/accounts/activate')) return 'Mengganti akun…';
+    if (u.includes('/accounts/remove')) return 'Menghapus akun…';
+    if (u.includes('/register')) return 'Memproses register…';
+    if (u.includes('/validate')) return 'Memvalidasi…';
+    if (method === 'get' || method === 'GET') return 'Memuat…';
+    return 'Memproses…';
+  }
+
+  // Double-RAF: ensure browser repaints before actually navigating.
+  function paintThen(cb) {
+    requestAnimationFrame(() => requestAnimationFrame(cb));
+  }
+
+  // Form submits — capture phase, prevent default, show loader, force paint, then submit().
+  document.addEventListener('submit', function(e){
+    const f = e.target;
+    if (!(f instanceof HTMLFormElement)) return;
+    if (f.dataset.noLoader) return;
+    if (f.target === '_blank') return;
+    if (f.dataset.__submitting) return;
+    e.preventDefault();
+    f.dataset.__submitting = '1';
+    const action = f.getAttribute('action') || location.pathname;
+    show(describe(action, (f.method || 'GET').toUpperCase()));
+    paintThen(() => { try { f.submit(); } catch (_) { f.dataset.__submitting = ''; hide(); } });
+  }, true);
+
+  // Link clicks → for slow internal routes, prevent default + show + paint + navigate.
+  const SLOW_PREFIXES = ['/packages/', '/hot', '/transactions', '/notifications',
+                         '/family-plan', '/circle', '/store/', '/bookmark',
+                         '/purchase/', '/accounts'];
+  document.addEventListener('click', function(e){
+    const a = e.target.closest('a');
+    if (!a) return;
+    if (a.target === '_blank' || a.hasAttribute('download') || a.dataset.noLoader) return;
+    const href = a.getAttribute('href') || '';
+    if (!href || href.startsWith('#') || href.startsWith('javascript:') || /^https?:\/\//i.test(href)) return;
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    if (SLOW_PREFIXES.some(p => href.startsWith(p))) {
+      e.preventDefault();
+      show(describe(href, 'GET'));
+      paintThen(() => { location.href = a.href; });
+    }
+  });
+
+  // Safety: hide on back/forward gestures that we missed
+  window.addEventListener('beforeunload', () => {});
+})();
+</script>
+</body>
+</html>

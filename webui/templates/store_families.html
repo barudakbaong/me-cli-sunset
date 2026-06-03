@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Store Families · me-cli{% endblock %}
+{% block content %}
+<div class="flex items-center justify-between mb-4 gap-3">
+  <h1 class="text-2xl font-bold">📚 Store Families</h1>
+  <form method="get" class="text-sm">
+    <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" name="enterprise" value="true" {% if enterprise %}checked{% endif %} onchange="this.form.submit()"> <span class="text-slate-300">Enterprise</span></label>
+  </form>
+</div>
+
+<p class="text-sm text-slate-400 mb-4">Kategori paket. Klik buat lihat opsi-opsi dalam family-nya.</p>
+
+{% if not families %}
+<div class="card text-slate-400 text-sm">Tidak ada family.</div>
+{% endif %}
+
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+{% for f in families %}
+<a href="/packages/by-family?code={{ f.id }}" class="card hover:border-indigo-500 transition flex items-center gap-3 group">
+  {% if f.icon %}<img src="{{ f.icon }}" alt="" class="w-10 h-10 rounded bg-slate-800 object-contain shrink-0">{% else %}<div class="w-10 h-10 rounded bg-slate-800 flex items-center justify-center text-xl shrink-0">📦</div>{% endif %}
+  <div class="min-w-0">
+    <div class="font-medium group-hover:text-indigo-300 truncate">{{ f.label }}</div>
+    <div class="text-xs text-slate-500 font-mono truncate">{{ f.id }}</div>
+  </div>
+</a>
+{% endfor %}
+</div>
+{% endblock %}

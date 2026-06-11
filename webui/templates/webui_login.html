@@ -20,12 +20,14 @@
   <!-- Tabs -->
   <div class="flex gap-1 bg-slate-900 border border-slate-800 rounded-lg p-1 mb-4">
     <a href="/u/login{% if username %}?username={{ username }}{% endif %}"
-       class="flex-1 text-center px-3 py-2 rounded-md text-sm transition-colors {% if mode == 'login' %}bg-indigo-600/30 text-indigo-200 border border-indigo-500/40{% else %}text-slate-400 hover:text-white hover:bg-slate-800{% endif %}">
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline-block text-indigo-400"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path></svg> Login
+       class="flex-1 text-center px-3 py-2 rounded-md text-sm transition-colors flex items-center justify-center gap-1.5 {% if mode == 'login' %}bg-indigo-600/30 text-indigo-200 border border-indigo-500/40{% else %}text-slate-400 hover:text-white hover:bg-slate-800{% endif %}">
+      <i class="fa-solid fa-key text-indigo-400"></i>
+      <span>Login</span>
     </a>
     <a href="/u/register"
-       class="flex-1 text-center px-3 py-2 rounded-md text-sm transition-colors {% if mode == 'register' %}bg-emerald-600/30 text-emerald-200 border border-emerald-500/40{% else %}text-slate-400 hover:text-white hover:bg-slate-800{% endif %}">
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline-block text-emerald-400"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg> Daftar baru
+       class="flex-1 text-center px-3 py-2 rounded-md text-sm transition-colors flex items-center justify-center gap-1.5 {% if mode == 'register' %}bg-emerald-600/30 text-emerald-200 border border-emerald-500/40{% else %}text-slate-400 hover:text-white hover:bg-slate-800{% endif %}">
+      <i class="fa-solid fa-user-plus text-emerald-400"></i>
+      <span>Daftar baru</span>
     </a>
   </div>
 
@@ -34,7 +36,7 @@
 
   <div class="card">
     {% if mode == 'register' %}
-    <h2 class="text-lg font-bold mb-1"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline-block text-emerald-400"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg> Daftar akun WebUI baru</h2>
+    <h2 class="text-lg font-bold mb-1"><i class="fa-solid fa-user-plus text-emerald-400 mr-1"></i> Daftar akun WebUI baru</h2>
     <p class="text-xs text-slate-400 mb-4">
       Bikin akun WebUI dulu, terus di dalam lo bisa login ke <b>nomor XL lo sendiri</b> via OTP. Tiap user webui ke-isolated — orang lain nggak bisa lihat / pakai nomor lo.
     </p>

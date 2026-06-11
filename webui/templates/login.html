@@ -13,10 +13,17 @@
   <!-- Tabs -->
   {% set active_tab = (tab or 'login') %}
   <div class="flex gap-1 bg-slate-900 border border-slate-800 rounded-lg p-1 mb-4">
-    {% for t in [('login','<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline-block text-indigo-400"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path></svg> Login'),('register','<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline-block mr-1"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg> Register Kartu'),('saved','<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline-block"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg> Akun Tersimpan')] %}
+    {% for t in [
+      ('login', 'fa-solid fa-key', 'Login'),
+      ('register', 'fa-solid fa-id-card', 'Register Kartu'),
+      ('saved', 'fa-solid fa-user-check', 'Akun Tersimpan')
+    ] %}
     <a href="?tab={{ t[0] }}{% if phone and t[0]=='login' %}&phone={{ phone }}{% endif %}"
-       class="flex-1 text-center px-3 py-2 rounded-md text-sm transition-colors {% if active_tab == t[0] %}bg-indigo-600/30 text-indigo-200 border border-indigo-500/40{% else %}text-slate-400 hover:text-white hover:bg-slate-800{% endif %}"
-       data-no-loader>{{ t[1] }}</a>
+       class="flex-1 text-center px-3 py-2 rounded-md text-sm transition-colors flex items-center justify-center gap-1.5 {% if active_tab == t[0] %}bg-indigo-600/30 text-indigo-200 border border-indigo-500/40{% else %}text-slate-400 hover:text-white hover:bg-slate-800{% endif %}"
+       data-no-loader>
+       <i class="{{ t[1] }} text-xs text-indigo-400"></i>
+       <span>{{ t[2] }}</span>
+    </a>
     {% endfor %}
   </div>
 

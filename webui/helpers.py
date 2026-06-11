@@ -30,6 +30,23 @@ def format_date(ts) -> str:
     except Exception:
         return str(ts)
 
+def format_iso_date(iso_str) -> str:
+    """Convert ISO-8601 string '2026-05-28T04:30:32.000+00:00' to human readable '28 May 2026, 11:30'"""
+    if not iso_str:
+        return "-"
+    try:
+        # Menghapus timezone marker belakang karena fromisoformat di versi python < 3.11 sensitif
+        clean_str = iso_str.replace("Z", "+00:00")
+        dt = datetime.fromisoformat(clean_str)
+        # Offset ke WIB (UTC+7)
+        import datetime as dt_lib
+        dt = dt.astimezone(dt_lib.timezone(dt_lib.timedelta(hours=7)))
+        
+        months = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agt", "Sep", "Okt", "Nov", "Des"]
+        return f"{dt.day} {months[dt.month-1]} {dt.year}, {dt.strftime('%H:%M')} WIB"
+    except Exception:
+        return str(iso_str)
+
 def safe_html(text) -> str:
     if text is None:
         return ""

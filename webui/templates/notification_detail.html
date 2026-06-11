@@ -16,7 +16,7 @@
       </div>
       <div>
         <h1 class="text-lg font-bold text-slate-100">{{ n.category_title or n.title or n.subject or "Pesan Baru" }}</h1>
-        <div class="text-xs text-slate-500">{{ n.timestamp or n.created_at or n.date or "" }}</div>
+        <div class="text-xs text-slate-500">{{ n.timestamp | iso_date }}</div>
       </div>
     </div>
     {% if n.category %}

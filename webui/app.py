@@ -14,7 +14,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from webui.helpers import format_rp, format_ts, format_date, safe_html, humanize_bytes, public_error_message
+from webui.helpers import format_rp, format_ts, format_date, format_iso_date, safe_html, humanize_bytes, public_error_message
 
 BASE_DIR = Path(__file__).resolve().parent
 PROJECT_DIR = BASE_DIR.parent
@@ -127,6 +127,7 @@ def create_app() -> FastAPI:
     templates.env.filters["rp"] = format_rp
     templates.env.filters["ts"] = format_ts
     templates.env.filters["date"] = format_date
+    templates.env.filters["iso_date"] = format_iso_date
     templates.env.filters["bytes"] = humanize_bytes
     templates.env.filters["safe_html"] = safe_html
     app.state.templates = templates

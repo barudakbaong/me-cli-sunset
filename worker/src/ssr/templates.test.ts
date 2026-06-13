@@ -24,6 +24,29 @@ describe("MyXL templates", () => {
     expect(html).toContain("/bookmark/remove");
   });
 
+  it("renders circle page with forms", () => {
+    const html = renderLayout("circle", new Request("http://localhost/circle"), {
+      page_title: "Circle",
+      group_json: "{}",
+      has_members: false,
+      has_spend: false,
+      has_bonus: false,
+      group_id: "G1",
+    });
+    expect(html).toContain("/circle/invite");
+    expect(html).toContain("/circle/create");
+  });
+
+  it("renders register form", () => {
+    const html = renderLayout("register", new Request("http://localhost/register"), {
+      page_title: "Register",
+      has_res: false,
+      msisdn: "",
+    });
+    expect(html).toContain("Register (Dukcapil)");
+    expect(html).toContain("/register/puk");
+  });
+
   it("renders family loop form", () => {
     const html = renderLayout("family_loop", new Request("http://localhost/purchase/family-loop"), {
       page_title: "Loop Beli Family",

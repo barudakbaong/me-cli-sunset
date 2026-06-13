@@ -5,4 +5,7 @@ export * from "./xdata";
 export { createCiamClient, validateContact, type CiamClient, type FetchFn, type TokenResponse } from "./ciam";
 export { createEngselClient, type EngselClient, type EngselTokens } from "./engsel";
 export { createStoreClient, type StoreClient } from "./store";
+export { createFamplanClient, type FamplanClient } from "./famplan";
+export { createCircleClient, type CircleClient } from "./circle";
+export { createRegistrationClient, type RegistrationClient } from "./registration";
 export * from "./purchase";

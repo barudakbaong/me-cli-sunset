@@ -1,6 +1,9 @@
+import type { CircleClient } from "../clients/circle";
 import type { MyXlClientConfig } from "../clients/config";
 import type { CiamClient, TokenResponse } from "../clients/ciam";
 import type { EngselClient } from "../clients/engsel";
+import type { FamplanClient } from "../clients/famplan";
+import type { RegistrationClient } from "../clients/registration";
 import { USER_ACTIVE_NUMBER, USER_MYXL_META, USER_REFRESH_TOKENS } from "../storage/keys";
 import type { StorageBackend } from "../storage/types";
 import { getTextBlob } from "./blob";
@@ -35,6 +38,9 @@ export interface MyXlClients {
   config: MyXlClientConfig;
   ciam: CiamClient;
   engsel: EngselClient;
+  famplan: FamplanClient;
+  circle: CircleClient;
+  registration: RegistrationClient;
 }
 
 async function readJson<T>(storage: StorageBackend, username: string, key: string, fallback: T): Promise<T> {

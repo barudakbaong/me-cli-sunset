@@ -1,6 +1,10 @@
 import accountsTemplate from "./templates/accounts.html";
 import baseTemplate from "./templates/base.html";
 import bookmarkTemplate from "./templates/bookmark.html";
+import circleResultTemplate from "./templates/circle_result.html";
+import circleTemplate from "./templates/circle.html";
+import famplanResultTemplate from "./templates/famplan_result.html";
+import famplanTemplate from "./templates/famplan.html";
 import dashboardTemplate from "./templates/dashboard.html";
 import errorBodyTemplate from "./templates/error_body.html";
 import familyDetailTemplate from "./templates/family_detail.html";
@@ -13,6 +17,9 @@ import packageDetailTemplate from "./templates/package_detail.html";
 import packagesInputCodeTemplate from "./templates/packages_input_code.html";
 import purchaseJobStatusTemplate from "./templates/purchase_job_status.html";
 import purchaseResultTemplate from "./templates/purchase_result.html";
+import registerPukTemplate from "./templates/register_puk.html";
+import registerTemplate from "./templates/register.html";
+import validateMsisdnTemplate from "./templates/validate_msisdn.html";
 import storeFamiliesTemplate from "./templates/store_families.html";
 import storePackagesTemplate from "./templates/store_packages.html";
 import storeRedemablesTemplate from "./templates/store_redemables.html";
@@ -40,4 +47,11 @@ export const TEMPLATES: Record<string, string> = {
   store_redemables: storeRedemablesTemplate,
   purchase_result: purchaseResultTemplate,
   purchase_job_status: purchaseJobStatusTemplate,
+  famplan: famplanTemplate,
+  famplan_result: famplanResultTemplate,
+  circle: circleTemplate,
+  circle_result: circleResultTemplate,
+  validate_msisdn: validateMsisdnTemplate,
+  register: registerTemplate,
+  register_puk: registerPukTemplate,
 };

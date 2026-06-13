@@ -1,5 +1,6 @@
 import type { Context } from "hono";
 import type { WebuiUserRecord } from "../auth/users";
+import { getTheme } from "../auth/users";
 import { htmlResponse, renderErrorPage } from "../ssr";
 import type { AppEnv } from "../types";
 import { getActiveUserSafe, listAccounts, type ActiveUser } from "./accounts";
@@ -11,6 +12,28 @@ export interface ActiveSession {
   webuiUser: WebuiUserRecord;
   activeUser: ActiveUser;
   clients: MyXlClients;
+}
+
+export function requireWebuiUser(c: Context<AppEnv>): WebuiUserRecord | Response {
+  const webuiUser = c.get("webuiUser");
+  if (!webuiUser) return c.redirect(`/u/login?next=${encodeURIComponent(c.req.path)}`, 303);
+  return webuiUser;
+}
+
+export function renderWebuiPage(
+  c: Context<AppEnv>,
+  webuiUser: WebuiUserRecord,
+  template: string,
+  ctx: Record<string, unknown> = {},
+): Response {
+  return htmlResponse(
+    renderMyXlPage(c.req.raw, template, webuiUser, {
+      page_title: (ctx.page_title as string) ?? "WebUI-XL",
+      user_theme: getTheme(webuiUser),
+      webui_user: { username: webuiUser.username },
+      ...ctx,
+    }),
+  );
 }
 
 export async function requireActiveSession(c: Context<AppEnv>): Promise<ActiveSession | Response> {

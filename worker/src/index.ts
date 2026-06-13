@@ -2,10 +2,13 @@ import { Hono } from "hono";
 import { sessionMiddleware } from "./middleware/session";
 import { myxlAuth } from "./routes/auth";
 import { bookmark } from "./routes/bookmark";
+import { circle } from "./routes/circle";
+import { famplan } from "./routes/famplan";
 import { dashboard } from "./routes/dashboard";
 import { hot } from "./routes/hot";
 import { packages } from "./routes/packages";
 import { purchase } from "./routes/purchase";
+import { registration } from "./routes/registration";
 import { store } from "./routes/store";
 import { processPurchaseJob } from "./queue/purchase-consumer";
 import type { PurchaseQueueMessage } from "./queue/purchase-jobs";
@@ -35,6 +38,9 @@ app.route("/", store);
 app.route("/", hot);
 app.route("/", bookmark);
 app.route("/", purchase);
+app.route("/", famplan);
+app.route("/", circle);
+app.route("/", registration);
 
 app.get("/demo/error", (c) => {
   const html = renderErrorPage(c.req.raw, {

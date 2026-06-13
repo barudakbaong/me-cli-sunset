@@ -1,7 +1,7 @@
 import type { Env } from "../env";
 import type { StorageBackend } from "../storage/types";
 import { createTelegramApi } from "./api";
-import { loadTelegramConfig } from "./config";
+import { loadTelegramConfig, type TelegramConfig } from "./config";
 import { BotContext } from "./context";
 import { handleCallback } from "./callbacks";
 import { COMMANDS } from "./commands";
@@ -12,8 +12,13 @@ import {
 } from "./purchase-flow";
 import type { TelegramUpdate } from "./types";
 
-export async function handleUpdate(env: Env, storage: StorageBackend, update: TelegramUpdate): Promise<void> {
-  const config = await loadTelegramConfig(env, storage);
+export async function handleUpdate(
+  env: Env,
+  storage: StorageBackend,
+  update: TelegramUpdate,
+  preloadedConfig?: TelegramConfig,
+): Promise<void> {
+  const config = preloadedConfig ?? (await loadTelegramConfig(env, storage));
   if (!config.bot_token) return;
 
   const api = createTelegramApi(config.bot_token);
@@ -42,6 +47,7 @@ export async function handleUpdate(env: Env, storage: StorageBackend, update: Te
     const args = parts.slice(1);
     const handler = COMMANDS[cmd];
     if (handler) {
+      api.sendChatAction(chatId);
       await handler(ctx, chatId, args);
       return;
     }
@@ -49,6 +55,7 @@ export async function handleUpdate(env: Env, storage: StorageBackend, update: Te
     return;
   }
 
+  api.sendChatAction(chatId);
   const user = await ctx.linkedUser(chatId);
   const state = user ? await ctx.getState(chatId) : null;
   const step = state?.step;

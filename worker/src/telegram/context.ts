@@ -35,6 +35,7 @@ import { formatRp } from "../ssr/filters";
 
 export class BotContext {
   readonly stateStore: TelegramStateStore;
+  private readonly accountsCache = new Map<string, RefreshTokenEntry[]>();
 
   constructor(
     readonly env: Env,
@@ -60,7 +61,11 @@ export class BotContext {
   }
 
   async listAccountMeta(username: string): Promise<RefreshTokenEntry[]> {
-    return listAccounts(this.storage, username);
+    const cached = this.accountsCache.get(username);
+    if (cached) return cached;
+    const accounts = await listAccounts(this.storage, username);
+    this.accountsCache.set(username, accounts);
+    return accounts;
   }
 
   async loadActiveMsisdn(chatId: number, username: string): Promise<number | null> {
@@ -164,9 +169,11 @@ export class BotContext {
   }
 
   async buildMainMenuText(chatId: number, username: string): Promise<string> {
-    const active = await this.getActiveMsisdn(chatId, username);
+    const [active, accs] = await Promise.all([
+      this.getActiveMsisdn(chatId, username),
+      this.listAccountMeta(username),
+    ]);
     if (active) {
-      const accs = await this.listAccountMeta(username);
       const meta = accs.find((a) => a.number === active);
       const st = meta ? esc(meta.subscription_type) : "";
       return (
@@ -175,7 +182,6 @@ export class BotContext {
         "\n\nPilih menu:"
       );
     }
-    const accs = await this.listAccountMeta(username);
     if (accs.length > 1) {
       return "<b>Menu utama</b>\n⚠️ Belum ada nomor aktif — tap <b>📱 Nomor</b> untuk memilih.\n\nPilih menu:";
     }
@@ -183,6 +189,7 @@ export class BotContext {
   }
 
   async sendMainMenu(chatId: number, username: string, msgId: number | null = null): Promise<void> {
+    this.api.sendChatAction(chatId);
     const text = await this.buildMainMenuText(chatId, username);
     await this.reply(chatId, msgId, text, mainMenuKeyboard());
   }
@@ -216,6 +223,7 @@ export class BotContext {
   }
 
   async executeKuota(chatId: number, username: string, msgId: number | null, active: ActiveUser): Promise<void> {
+    this.api.sendChatAction(chatId);
     const clients = createMyXlClients(this.env, this.storage, username);
     const lines: string[] = ["<b>Info Pelanggan</b>"];
 
@@ -290,6 +298,7 @@ export class BotContext {
   }
 
   async showHistory(chatId: number, username: string, msgId: number | null, active: ActiveUser): Promise<void> {
+    this.api.sendChatAction(chatId);
     const clients = createMyXlClients(this.env, this.storage, username);
     try {
       const raw = await clients.engsel.getTransactionHistory(active.tokens.id_token);
@@ -316,6 +325,7 @@ export class BotContext {
     const active = await this.requireActiveAccount(chatId, username, msgId);
     if (!active) return;
 
+    this.api.sendChatAction(chatId);
     await this.reply(chatId, msgId, "Mengambil paket aktif...");
     try {
       const quotas = await this.fetchActiveQuotas(username, active);
@@ -414,9 +424,9 @@ export class BotContext {
   // ── Commands ──
 
   async cmdStart(chatId: number): Promise<void> {
-    if (await this.linkedUser(chatId)) {
-      const user = await this.linkedUser(chatId);
-      if (user) await this.sendMainMenu(chatId, user.username);
+    const user = await this.linkedUser(chatId);
+    if (user) {
+      await this.sendMainMenu(chatId, user.username);
       return;
     }
     await this.api.sendMessage(

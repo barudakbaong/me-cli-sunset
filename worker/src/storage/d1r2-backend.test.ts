@@ -26,6 +26,16 @@ describe("D1R2Backend", () => {
     expect(await store.loadUsers()).toEqual(users);
   });
 
+  it("finds user by telegram chat id via indexed lookup", async () => {
+    const { store } = makeBackend();
+    await store.saveUsers([
+      { username: "alice", password_hash: "x", created_at: 1, telegram_chat_id: 4242 },
+      { username: "bob", password_hash: "y", created_at: 2, telegram_chat_id: null },
+    ]);
+    expect((await store.findUserByTelegramChatId(4242))?.username).toBe("alice");
+    expect(await store.findUserByTelegramChatId(9999)).toBeNull();
+  });
+
   it("encrypts sensitive user blobs in R2", async () => {
     const { store, data: r2 } = makeBackend();
     await store.putBlob("alice", USER_REFRESH_TOKENS, "[]");

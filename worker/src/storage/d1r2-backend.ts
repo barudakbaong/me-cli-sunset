@@ -61,21 +61,33 @@ export class D1R2Backend implements StorageBackend {
     return encryptBytes(raw, await this.encryptionKey());
   }
 
+  private mapUserRow(row: WebUIUser): WebUIUser {
+    const user: WebUIUser = {
+      username: row.username,
+      password_hash: row.password_hash,
+      created_at: row.created_at,
+    };
+    if (row.theme) user.theme = row.theme;
+    if (row.telegram_chat_id != null) user.telegram_chat_id = row.telegram_chat_id;
+    return user;
+  }
+
   async loadUsers(): Promise<WebUIUser[]> {
     const result = await this.env.DB.prepare(
       `SELECT username, password_hash, created_at, theme, telegram_chat_id
        FROM webui_users ORDER BY created_at ASC`,
     ).all<WebUIUser>();
-    return (result.results ?? []).map((row) => {
-      const user: WebUIUser = {
-        username: row.username,
-        password_hash: row.password_hash,
-        created_at: row.created_at,
-      };
-      if (row.theme) user.theme = row.theme;
-      if (row.telegram_chat_id != null) user.telegram_chat_id = row.telegram_chat_id;
-      return user;
-    });
+    return (result.results ?? []).map((row) => this.mapUserRow(row));
+  }
+
+  async findUserByTelegramChatId(chatId: number): Promise<WebUIUser | null> {
+    const row = await this.env.DB.prepare(
+      `SELECT username, password_hash, created_at, theme, telegram_chat_id
+       FROM webui_users WHERE telegram_chat_id = ? LIMIT 1`,
+    )
+      .bind(chatId)
+      .first<WebUIUser>();
+    return row ? this.mapUserRow(row) : null;
   }
 
   async saveUsers(users: WebUIUser[]): Promise<void> {

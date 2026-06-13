@@ -92,7 +92,9 @@ app.notFound((c) =>
 );
 
 export default {
-  fetch: app.fetch,
+  fetch(request: Request, env: import("./env").Env, ctx: ExecutionContext) {
+    return app.fetch(request, env, ctx);
+  },
   async scheduled(_controller: ScheduledController, env: import("./env").Env): Promise<void> {
     const storage = resolveStorage(env);
     await runMonitorCron(env, storage);

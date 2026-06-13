@@ -73,6 +73,7 @@ async function handleMenuAction(
     return;
   }
   if (action === "kuota") {
+    ctx.api.sendChatAction(chatId);
     const active = await ctx.requireActiveAccount(chatId, username, msgId);
     if (!active) return;
     await ctx.reply(chatId, msgId, "Mengambil data...");
@@ -80,6 +81,7 @@ async function handleMenuAction(
     return;
   }
   if (action === "history") {
+    ctx.api.sendChatAction(chatId);
     const active = await ctx.requireActiveAccount(chatId, username, msgId);
     if (!active) return;
     await ctx.reply(chatId, msgId, "Mengambil riwayat...");

@@ -15,6 +15,7 @@ export interface StorageBindings {
 
 export interface StorageBackend {
   loadUsers(): Promise<WebUIUser[]>;
+  findUserByTelegramChatId(chatId: number): Promise<WebUIUser | null>;
   saveUsers(users: WebUIUser[]): Promise<void>;
   getSessionSecret(): Promise<Uint8Array>;
   ensureUserDir(username: string): Promise<void>;

@@ -36,6 +36,11 @@ export class MemoryStorageBackend implements StorageBackend {
     return this.users.map((u) => ({ ...u }));
   }
 
+  async findUserByTelegramChatId(chatId: number): Promise<WebUIUser | null> {
+    const user = this.users.find((u) => u.telegram_chat_id === chatId);
+    return user ? { ...user } : null;
+  }
+
   async saveUsers(users: WebUIUser[]): Promise<void> {
     this.users = users.map((u) => ({ ...u }));
   }

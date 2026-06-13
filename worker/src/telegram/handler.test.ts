@@ -14,6 +14,7 @@ vi.mock("./api", () => ({
     }),
     editMessage: vi.fn(async () => true),
     answerCallbackQuery: vi.fn(async () => {}),
+    sendChatAction: vi.fn(() => {}),
   }),
 }));
 

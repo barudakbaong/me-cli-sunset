@@ -55,6 +55,12 @@ class MockPreparedStatement implements D1PreparedStatement {
   private async runQuery<T>(): Promise<T[]> {
     const sql = normalizeSql(this.sql);
 
+    if (sql.includes("where telegram_chat_id =")) {
+      const [chatId] = this.binds as [number];
+      const user = this.db.users.find((u) => u.telegram_chat_id === chatId);
+      return user ? ([{ ...user }] as T[]) : [];
+    }
+
     if (sql.startsWith("select username, password_hash")) {
       return this.db.users.map((u) => ({ ...u })) as T[];
     }

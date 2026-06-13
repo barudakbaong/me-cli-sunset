@@ -53,7 +53,11 @@ export class LocalWorkerClient {
   private readonly jar = new CookieJar();
 
   constructor(
-    private readonly fetchFn: (req: Request, env: Env) => Response | Promise<Response>,
+    private readonly fetchFn: (
+      req: Request,
+      env: Env,
+      ctx?: ExecutionContext,
+    ) => Response | Promise<Response>,
     private readonly env: Env,
     private readonly origin = "http://e2e.local",
   ) {}
@@ -64,7 +68,16 @@ export class LocalWorkerClient {
     const cookie = this.jar.header();
     if (cookie) headers.set("Cookie", cookie);
 
-    const res = await this.fetchFn(new Request(`${this.origin}${path}`, { ...init, headers }), this.env);
+    const pending: Promise<unknown>[] = [];
+    const ctx: ExecutionContext = {
+      waitUntil(promise) {
+        pending.push(promise);
+      },
+      passThroughOnException() {},
+    };
+
+    const res = await this.fetchFn(new Request(`${this.origin}${path}`, { ...init, headers }), this.env, ctx);
+    await Promise.all(pending);
     this.jar.ingestFromResponse(res.headers);
 
     return {

@@ -5,11 +5,14 @@ export interface TelegramSendResult {
   error?: string;
 }
 
+export type ChatAction = "typing" | "upload_photo" | "upload_document";
+
 export interface TelegramApi {
   sendMessage(chatId: number, text: string, replyMarkup?: InlineKeyboard): Promise<boolean>;
   sendMessageDetailed(chatId: number, text: string, replyMarkup?: InlineKeyboard): Promise<TelegramSendResult>;
   editMessage(chatId: number, messageId: number, text: string, replyMarkup?: InlineKeyboard): Promise<boolean>;
-  answerCallbackQuery(callbackQueryId: string): Promise<void>;
+  answerCallbackQuery(callbackQueryId: string, text?: string): Promise<void>;
+  sendChatAction(chatId: number, action?: ChatAction): void;
 }
 
 export function createTelegramApi(botToken: string, fetchFn: typeof fetch = fetch): TelegramApi {
@@ -84,12 +87,18 @@ export function createTelegramApi(botToken: string, fetchFn: typeof fetch = fetc
       }
     },
 
-    async answerCallbackQuery(callbackQueryId) {
+    async answerCallbackQuery(callbackQueryId, text) {
       try {
-        await post("answerCallbackQuery", { callback_query_id: callbackQueryId });
+        const body: Record<string, unknown> = { callback_query_id: callbackQueryId };
+        if (text) body.text = text;
+        void post("answerCallbackQuery", body);
       } catch {
         // ignore
       }
+    },
+
+    sendChatAction(chatId, action = "typing") {
+      void post("sendChatAction", { chat_id: chatId, action }).catch(() => {});
     },
   };
 }

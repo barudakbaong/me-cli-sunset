@@ -78,10 +78,7 @@ export async function getUserByTelegram(
   storage: StorageBackend,
   chatId: number,
 ): Promise<WebuiUserRecord | null> {
-  for (const u of await loadUsers(storage)) {
-    if (u.telegram_chat_id === chatId) return u;
-  }
-  return null;
+  return storage.findUserByTelegramChatId(chatId);
 }
 
 export async function linkTelegram(

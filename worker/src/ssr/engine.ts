@@ -38,11 +38,11 @@ export function buildLayoutContext(request: Request, extra: RenderContext = {}):
     page_title: "WebUI-XL",
     theme_class: themeClass(extra.user_theme as string | undefined),
     sections: buildNavSections(path),
-    bottom_home: bottom.home,
     bottom_packages: bottom.packages,
     bottom_hot: bottom.hot,
+    bottom_home: bottom.home,
     bottom_transactions: bottom.transactions,
-    bottom_bookmark: bottom.bookmark,
+    bottom_account: bottom.account,
     webui_user: webuiUser?.username ? { username: webuiUser.username } : undefined,
     ...extra,
   };

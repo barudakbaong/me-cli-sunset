@@ -121,6 +121,30 @@ export async function unlinkTelegram(storage: StorageBackend, username: string):
   return true;
 }
 
+export async function changePassword(
+  storage: StorageBackend,
+  username: string,
+  currentPassword: string,
+  newPassword: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const user = await authenticate(storage, username, currentPassword);
+  if (!user) return { ok: false, error: "Password lama salah." };
+  if (newPassword.length < 6) {
+    return { ok: false, error: "Password baru minimal 6 karakter." };
+  }
+
+  const users = await loadUsers(storage);
+  const normalized = (username || "").toLowerCase().trim();
+  for (const u of users) {
+    if (u.username.toLowerCase() === normalized) {
+      u.password_hash = await hashPassword(newPassword);
+      await storage.saveUsers(users);
+      return { ok: true };
+    }
+  }
+  return { ok: false, error: "User tidak ditemukan." };
+}
+
 export async function setTheme(
   storage: StorageBackend,
   username: string,

@@ -4,8 +4,9 @@ import {
   SESSION_MAX_AGE,
   makeSessionToken,
 } from "../auth/session";
-import { authenticate, createUser, getTheme, loadUsers } from "../auth/users";
+import { authenticate, changePassword, createUser, getTheme, loadUsers } from "../auth/users";
 import { htmlResponse, renderWebuiLogin } from "../ssr";
+import { renderWebuiPage, requireWebuiUser } from "../myxl/require";
 import type { AppEnv } from "../types";
 
 function safeNext(next: string | undefined): string {
@@ -128,3 +129,52 @@ const logoutHandler = (c: Context<AppEnv>) => {
 
 webuiAuth.get("/u/logout", logoutHandler);
 webuiAuth.post("/u/logout", logoutHandler);
+
+webuiAuth.get("/u/account", (c) => {
+  const webuiUser = requireWebuiUser(c);
+  if (webuiUser instanceof Response) return webuiUser;
+
+  const url = new URL(c.req.url);
+  return renderWebuiPage(c, webuiUser, "webui_account", {
+    page_title: "Akun WebUI · WebUI-XL",
+    username: webuiUser.username,
+    has_telegram: webuiUser.telegram_chat_id != null,
+    telegram_chat_id: webuiUser.telegram_chat_id ?? "",
+    success: url.searchParams.get("msg") === "ok" ? "Password berhasil diubah." : undefined,
+    error: url.searchParams.get("error") ?? undefined,
+  });
+});
+
+webuiAuth.post("/u/account/password", async (c) => {
+  const webuiUser = requireWebuiUser(c);
+  if (webuiUser instanceof Response) return webuiUser;
+
+  const body = await c.req.parseBody();
+  const currentPassword = String(body.current_password ?? "");
+  const newPassword = String(body.new_password ?? "");
+  const newPasswordConfirm = String(body.new_password_confirm ?? "");
+  const storage = c.get("storage");
+
+  if (newPassword !== newPasswordConfirm) {
+    return renderWebuiPage(c, webuiUser, "webui_account", {
+      page_title: "Akun WebUI · WebUI-XL",
+      username: webuiUser.username,
+      has_telegram: webuiUser.telegram_chat_id != null,
+      telegram_chat_id: webuiUser.telegram_chat_id ?? "",
+      error: "Password baru tidak cocok.",
+    });
+  }
+
+  const result = await changePassword(storage, webuiUser.username, currentPassword, newPassword);
+  if (!result.ok) {
+    return renderWebuiPage(c, webuiUser, "webui_account", {
+      page_title: "Akun WebUI · WebUI-XL",
+      username: webuiUser.username,
+      has_telegram: webuiUser.telegram_chat_id != null,
+      telegram_chat_id: webuiUser.telegram_chat_id ?? "",
+      error: result.error,
+    });
+  }
+
+  return c.redirect("/u/account?msg=ok", 303);
+});

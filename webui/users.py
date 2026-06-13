@@ -184,6 +184,21 @@ def authenticate(username: str, password: str) -> Optional[dict]:
     return u
 
 
+def change_password(username: str, current_password: str, new_password: str) -> tuple[bool, str]:
+    if not authenticate(username, current_password):
+        return False, "Password lama salah."
+    if len(new_password) < 6:
+        return False, "Password baru minimal 6 karakter."
+    users = load_users()
+    normalized = (username or "").lower().strip()
+    for u in users:
+        if u.get("username", "").lower() == normalized:
+            u["password_hash"] = hash_password(new_password)
+            save_users(users)
+            return True, ""
+    return False, "User tidak ditemukan."
+
+
 def link_telegram(username: str, chat_id: int) -> bool:
     users = load_users()
     for u in users:

@@ -32,11 +32,13 @@ import storeFamiliesTemplate from "./templates/store_families.html";
 import storePackagesTemplate from "./templates/store_packages.html";
 import storeRedemablesTemplate from "./templates/store_redemables.html";
 import storeSegmentsTemplate from "./templates/store_segments.html";
+import webuiAccountTemplate from "./templates/webui_account.html";
 import webuiLoginTemplate from "./templates/webui_login.html";
 
 export const TEMPLATES: Record<string, string> = {
   base: baseTemplate,
   webui_login: webuiLoginTemplate,
+  webui_account: webuiAccountTemplate,
   error_body: errorBodyTemplate,
   login: loginTemplate,
   dashboard: dashboardTemplate,

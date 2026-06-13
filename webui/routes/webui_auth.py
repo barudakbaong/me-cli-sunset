@@ -9,9 +9,9 @@ from fastapi.responses import RedirectResponse, Response
 
 from webui.users import (
     COOKIE_NAME, SESSION_MAX_AGE,
-    authenticate, create_user, get_user, make_session_token, load_users,
+    authenticate, change_password, create_user, get_user, make_session_token, load_users,
 )
-from webui.deps import get_templates
+from webui.deps import get_templates, render
 
 router = APIRouter()
 
@@ -93,3 +93,57 @@ def logout(request: Request):
     resp = RedirectResponse(url="/u/login", status_code=303)
     resp.delete_cookie(key=COOKIE_NAME)
     return resp
+
+
+@router.get("/u/account")
+def account_page(request: Request, msg: str | None = None, error: str | None = None):
+    webui_user = getattr(request.state, "webui_user", None)
+    if not webui_user:
+        return RedirectResponse(url="/u/login", status_code=303)
+    user = get_user(webui_user["username"]) or webui_user
+    chat_id = user.get("telegram_chat_id")
+    return render(
+        request, "webui_account.html",
+        username=user["username"],
+        has_telegram=chat_id is not None,
+        telegram_chat_id=chat_id or "",
+        success="Password berhasil diubah." if msg == "ok" else None,
+        error=error,
+    )
+
+
+@router.post("/u/account/password")
+def account_password(
+    request: Request,
+    current_password: str = Form(...),
+    new_password: str = Form(...),
+    new_password_confirm: str = Form(...),
+):
+    webui_user = getattr(request.state, "webui_user", None)
+    if not webui_user:
+        return RedirectResponse(url="/u/login", status_code=303)
+
+    username = webui_user["username"]
+    user = get_user(username) or webui_user
+    chat_id = user.get("telegram_chat_id")
+
+    if new_password != new_password_confirm:
+        return render(
+            request, "webui_account.html",
+            username=username,
+            has_telegram=chat_id is not None,
+            telegram_chat_id=chat_id or "",
+            error="Password baru tidak cocok.",
+        )
+
+    ok, err = change_password(username, current_password, new_password)
+    if not ok:
+        return render(
+            request, "webui_account.html",
+            username=username,
+            has_telegram=chat_id is not None,
+            telegram_chat_id=chat_id or "",
+            error=err,
+        )
+
+    return RedirectResponse(url="/u/account?msg=ok", status_code=303)

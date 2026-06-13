@@ -132,19 +132,19 @@ export function buildNavSections(path: string): NavSection[] {
 }
 
 export interface BottomNavState {
-  home: boolean;
   packages: boolean;
   hot: boolean;
+  home: boolean;
   transactions: boolean;
-  bookmark: boolean;
+  account: boolean;
 }
 
 export function buildBottomNav(path: string): BottomNavState {
   return {
-    home: navActive(path, "/"),
     packages: navActive(path, "/packages/my"),
-    hot: navActive(path, "/hot"),
+    hot: navActive(path, "/hot") || navActive(path, "/hot2"),
+    home: navActive(path, "/"),
     transactions: navActive(path, "/transactions"),
-    bookmark: navActive(path, "/bookmark"),
+    account: navActive(path, "/u/account"),
   };
 }

@@ -137,13 +137,18 @@ export function createEngselClient(options: EngselClientOptions) {
     return null;
   }
 
-  async function getPackage(idToken: string, packageOptionCode: string): Promise<Record<string, unknown> | null> {
+  async function getPackage(
+    idToken: string,
+    packageOptionCode: string,
+    packageFamilyCode = "",
+    packageVariantCode = "",
+  ): Promise<Record<string, unknown> | null> {
     const res = await sendApiRequest(
       "api/v8/xl-stores/options/detail",
       {
         is_transaction_routine: false,
         migration_type: "NONE",
-        package_family_code: "",
+        package_family_code: packageFamilyCode,
         family_role_hub: "",
         is_autobuy: false,
         is_enterprise: false,
@@ -152,7 +157,7 @@ export function createEngselClient(options: EngselClientOptions) {
         lang: "en",
         package_option_code: packageOptionCode,
         is_upsell_pdp: false,
-        package_variant_code: "",
+        package_variant_code: packageVariantCode,
       },
       idToken,
     );

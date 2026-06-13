@@ -21,6 +21,7 @@ export interface Env {
   KV?: KVNamespace;
   ASSETS?: Fetcher;
   PURCHASE_QUEUE?: Queue<PurchaseQueueMessage>;
+  FAMILY_LOOP?: DurableObjectNamespace;
 }
 
 /** Queue payload — mirrors queue/purchase-jobs.ts */

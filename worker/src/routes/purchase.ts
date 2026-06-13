@@ -1,12 +1,15 @@
 import { Hono } from "hono";
 import { EWALLET_FORM_METHODS, isAsyncPurchaseMethod } from "../clients/purchase/types";
 import { htmlResponse, renderErrorPage } from "../ssr";
+import { createFamilyLoopSseResponse, type FamilyLoopParams } from "../myxl/family-loop-runner";
 import { executeOptionPurchase } from "../myxl/purchase-executor";
 import { formatPurchaseResult } from "../myxl/purchase";
 import { renderActivePage, requireActiveSession } from "../myxl/require";
 import { createPurchaseJob, newJobId, readJobStatus, type PurchaseJobPayload } from "../queue/purchase-jobs";
 import { processPurchaseJob } from "../queue/purchase-consumer";
 import type { AppEnv } from "../types";
+
+const FAMILY_LOOP_USERNAME_HEADER = "X-WebUI-Username";
 
 export const purchase = new Hono<AppEnv>();
 
@@ -40,6 +43,20 @@ async function enqueueOrRun(
   return { jobId: payload.id, pending: false };
 }
 
+function parseFamilyLoopParams(
+  familyCode: string,
+  startFromRaw: string | undefined,
+  delayRaw: string | undefined,
+  useDecoyRaw: string | undefined,
+): FamilyLoopParams {
+  return {
+    familyCode: familyCode.trim(),
+    startFrom: Math.max(1, parseFormInt(startFromRaw, 1)),
+    delaySeconds: Math.min(60, Math.max(0, parseFormInt(delayRaw, 0))),
+    useDecoy: useDecoyRaw === "true",
+  };
+}
+
 function renderPurchaseResult(
   c: import("hono").Context<AppEnv>,
   session: Awaited<ReturnType<typeof requireActiveSession>>,
@@ -58,6 +75,160 @@ function renderPurchaseResult(
     ...ctx,
   });
 }
+
+purchase.get("/purchase/family-loop", async (c) => {
+  const session = await requireActiveSession(c);
+  if (session instanceof Response) return session;
+
+  const familyCode = c.req.query("family_code")?.trim() ?? "";
+  return renderActivePage(c, session, "family_loop", {
+    page_title: "Loop Beli Family · WebUI-XL",
+    family_code: familyCode,
+  });
+});
+
+purchase.post("/purchase/family-loop/start", async (c) => {
+  const session = await requireActiveSession(c);
+  if (session instanceof Response) return session;
+
+  const body = await c.req.parseBody();
+  const familyCode = String(body.family_code ?? "").trim();
+  if (!familyCode) {
+    const html = renderErrorPage(c.req.raw, { title: "Invalid", message: "Family code wajib diisi." });
+    return htmlResponse(html, 400);
+  }
+
+  const startFrom = Math.max(1, parseFormInt(String(body.start_from ?? ""), 1));
+  const delaySeconds = Math.min(60, Math.max(0, parseFormInt(String(body.delay_seconds ?? ""), 0)));
+  const useDecoy = body.use_decoy === "true";
+
+  return renderActivePage(c, session, "family_loop_stream", {
+    page_title: "Loop berjalan · WebUI-XL",
+    family_code: familyCode,
+    family_code_encoded: encodeURIComponent(familyCode),
+    start_from: startFrom,
+    delay_seconds: delaySeconds,
+    use_decoy: useDecoy,
+    use_decoy_str: useDecoy ? "true" : "false",
+  });
+});
+
+purchase.get("/purchase/family-loop/stream", async (c) => {
+  const session = await requireActiveSession(c);
+  if (session instanceof Response) return session;
+
+  const params = parseFamilyLoopParams(
+    c.req.query("family_code") ?? "",
+    c.req.query("start_from") ?? undefined,
+    c.req.query("delay_seconds") ?? undefined,
+    c.req.query("use_decoy") ?? undefined,
+  );
+
+  if (!params.familyCode) {
+    return c.text("family_code is required", 400);
+  }
+
+  const doBinding = c.env.FAMILY_LOOP;
+  if (doBinding) {
+    const stub = doBinding.get(doBinding.idFromName(`${session.webuiUser.username}:${params.familyCode}`));
+    const req = new Request(c.req.url, {
+      headers: { [FAMILY_LOOP_USERNAME_HEADER]: session.webuiUser.username },
+      signal: c.req.raw.signal,
+    });
+    return stub.fetch(req);
+  }
+
+  return createFamilyLoopSseResponse(c.env, session.webuiUser.username, params, c.req.raw.signal);
+});
+
+purchase.get("/internal/jobs/purchase/:id", async (c) => {
+  const session = await requireActiveSession(c);
+  if (session instanceof Response) return session;
+
+  const job = await readJobStatus(c.get("storage"), c.req.param("id"));
+  if (!job) {
+    const html = renderErrorPage(c.req.raw, { title: "Job tidak ditemukan", message: "ID invalid atau sudah expired." });
+    return htmlResponse(html, 404);
+  }
+
+  if (job.status === "pending" || job.status === "running") {
+    const ctx = formatPurchaseResult(job.title ?? "Memproses…", { status: job.status }, null, {
+      jobPending: true,
+      jobId: job.id,
+    });
+    return renderActivePage(c, session, "purchase_job_status", {
+      page_title: "Memproses pembelian · WebUI-XL",
+      ...ctx,
+    });
+  }
+
+  const ctx = formatPurchaseResult(
+    job.title ?? "Pembelian",
+    job.result ?? { status: job.status, message: job.error },
+    job.qrisCode,
+  );
+  return renderActivePage(c, session, "purchase_job_status", {
+    page_title: `${ctx.title} · WebUI-XL`,
+    ...ctx,
+  });
+});
+
+purchase.post("/purchase/hot2", async (c) => {
+  const session = await requireActiveSession(c);
+  if (session instanceof Response) return session;
+
+  const body = await c.req.parseBody();
+  const hot2Idx = parseFormInt(String(body.hot2_idx ?? ""), -1);
+  const method = String(body.method ?? "");
+  const walletNumber = String(body.wallet_number ?? "");
+
+  if (!["balance", "qris", ...Object.keys(EWALLET_FORM_METHODS)].includes(method)) {
+    const html = renderErrorPage(c.req.raw, { title: "Metode invalid", message: method });
+    return htmlResponse(html, 400);
+  }
+
+  if (method === "balance") {
+    const jobId = newJobId();
+    const payload: PurchaseJobPayload = {
+      id: jobId,
+      kind: "hot2",
+      username: session.webuiUser.username,
+      method,
+      paymentFor: "BUY_PACKAGE",
+      walletNumber,
+      qrisAmount: -1,
+      hot2Idx,
+      createdAt: Math.floor(Date.now() / 1000),
+    };
+    await createPurchaseJob(c.get("storage"), payload);
+    await processPurchaseJob(c.env, payload);
+    const job = await readJobStatus(c.get("storage"), jobId);
+    return renderPurchaseResult(c, session, job?.title ?? "Hot-2", job?.result, job?.qrisCode);
+  }
+
+  const jobId = newJobId();
+  const { pending } = await enqueueOrRun(c, {
+    id: jobId,
+    kind: "hot2",
+    username: session.webuiUser.username,
+    method,
+    paymentFor: "BUY_PACKAGE",
+    walletNumber,
+    qrisAmount: -1,
+    hot2Idx,
+    createdAt: Math.floor(Date.now() / 1000),
+  });
+
+  if (!pending) {
+    const job = await readJobStatus(c.get("storage"), jobId);
+    return renderPurchaseResult(c, session, job?.title ?? "Hot-2", job?.result, job?.qrisCode);
+  }
+
+  return renderPurchaseResult(c, session, "Memproses Hot-2…", { status: "PENDING" }, null, {
+    jobId,
+    pending: true,
+  });
+});
 
 purchase.post("/purchase/:option_code", async (c) => {
   const session = await requireActiveSession(c);
@@ -135,93 +306,4 @@ purchase.post("/purchase/:option_code", async (c) => {
     message: `Method '${method}' tidak dikenal.`,
   });
   return htmlResponse(html, 400);
-});
-
-purchase.post("/purchase/hot2", async (c) => {
-  const session = await requireActiveSession(c);
-  if (session instanceof Response) return session;
-
-  const body = await c.req.parseBody();
-  const hot2Idx = parseFormInt(String(body.hot2_idx ?? ""), -1);
-  const method = String(body.method ?? "");
-  const walletNumber = String(body.wallet_number ?? "");
-
-  if (!["balance", "qris", ...Object.keys(EWALLET_FORM_METHODS)].includes(method)) {
-    const html = renderErrorPage(c.req.raw, { title: "Metode invalid", message: method });
-    return htmlResponse(html, 400);
-  }
-
-  if (method === "balance") {
-    const jobId = newJobId();
-    const payload: PurchaseJobPayload = {
-      id: jobId,
-      kind: "hot2",
-      username: session.webuiUser.username,
-      method,
-      paymentFor: "BUY_PACKAGE",
-      walletNumber,
-      qrisAmount: -1,
-      hot2Idx,
-      createdAt: Math.floor(Date.now() / 1000),
-    };
-    await createPurchaseJob(c.get("storage"), payload);
-    await processPurchaseJob(c.env, payload);
-    const job = await readJobStatus(c.get("storage"), jobId);
-    return renderPurchaseResult(c, session, job?.title ?? "Hot-2", job?.result, job?.qrisCode);
-  }
-
-  const jobId = newJobId();
-  const { pending } = await enqueueOrRun(c, {
-    id: jobId,
-    kind: "hot2",
-    username: session.webuiUser.username,
-    method,
-    paymentFor: "BUY_PACKAGE",
-    walletNumber,
-    qrisAmount: -1,
-    hot2Idx,
-    createdAt: Math.floor(Date.now() / 1000),
-  });
-
-  if (!pending) {
-    const job = await readJobStatus(c.get("storage"), jobId);
-    return renderPurchaseResult(c, session, job?.title ?? "Hot-2", job?.result, job?.qrisCode);
-  }
-
-  return renderPurchaseResult(c, session, "Memproses Hot-2…", { status: "PENDING" }, null, {
-    jobId,
-    pending: true,
-  });
-});
-
-purchase.get("/internal/jobs/purchase/:id", async (c) => {
-  const session = await requireActiveSession(c);
-  if (session instanceof Response) return session;
-
-  const job = await readJobStatus(c.get("storage"), c.req.param("id"));
-  if (!job) {
-    const html = renderErrorPage(c.req.raw, { title: "Job tidak ditemukan", message: "ID invalid atau sudah expired." });
-    return htmlResponse(html, 404);
-  }
-
-  if (job.status === "pending" || job.status === "running") {
-    const ctx = formatPurchaseResult(job.title ?? "Memproses…", { status: job.status }, null, {
-      jobPending: true,
-      jobId: job.id,
-    });
-    return renderActivePage(c, session, "purchase_job_status", {
-      page_title: "Memproses pembelian · WebUI-XL",
-      ...ctx,
-    });
-  }
-
-  const ctx = formatPurchaseResult(
-    job.title ?? "Pembelian",
-    job.result ?? { status: job.status, message: job.error },
-    job.qrisCode,
-  );
-  return renderActivePage(c, session, "purchase_job_status", {
-    page_title: `${ctx.title} · WebUI-XL`,
-    ...ctx,
-  });
 });

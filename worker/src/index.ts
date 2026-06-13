@@ -13,6 +13,8 @@ import { webuiAuth } from "./routes/webui-auth";
 import { htmlResponse, renderErrorPage } from "./ssr";
 import type { AppEnv } from "./types";
 
+export { FamilyLoopDO } from "./durable-objects/family-loop";
+
 const app = new Hono<AppEnv>();
 
 app.use("*", sessionMiddleware);

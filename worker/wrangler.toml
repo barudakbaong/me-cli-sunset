@@ -40,5 +40,13 @@ ENVIRONMENT = "development"
 # max_batch_size = 1
 # max_retries = 3
 
+# [[durable_objects.bindings]]
+# name = "FAMILY_LOOP"
+# class_name = "FamilyLoopDO"
+
+# [[migrations]]
+# tag = "v1"
+# new_classes = ["FamilyLoopDO"]
+
 [dev]
 port = 8787

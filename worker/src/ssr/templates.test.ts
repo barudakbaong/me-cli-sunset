@@ -24,6 +24,16 @@ describe("MyXL templates", () => {
     expect(html).toContain("/bookmark/remove");
   });
 
+  it("renders family loop form", () => {
+    const html = renderLayout("family_loop", new Request("http://localhost/purchase/family-loop"), {
+      page_title: "Loop Beli Family",
+      family_code: "FAM-123",
+    });
+    expect(html).toContain("Loop Beli Family");
+    expect(html).toContain("/purchase/family-loop/start");
+    expect(html).toContain("FAM-123");
+  });
+
   it("renders purchase result with pending job poll", () => {
     const html = renderLayout("purchase_result", new Request("http://localhost/purchase/OPT1"), {
       page_title: "Pembelian",

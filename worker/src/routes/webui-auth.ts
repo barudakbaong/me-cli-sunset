@@ -68,9 +68,8 @@ webuiAuth.post("/u/login", async (c) => {
   }
 
   const token = await makeSessionToken(user.username, await storage.getSessionSecret());
-  const res = c.redirect(next, 303);
   setSessionCookie(c, token);
-  return res;
+  return c.redirect(next, 303);
 });
 
 webuiAuth.get("/u/register", async (c) => {
@@ -118,9 +117,8 @@ webuiAuth.post("/u/register", async (c) => {
   }
 
   const token = await makeSessionToken(username.toLowerCase().trim(), await storage.getSessionSecret());
-  const res = c.redirect("/", 303);
   setSessionCookie(c, token);
-  return res;
+  return c.redirect("/", 303);
 });
 
 const logoutHandler = (c: Context<AppEnv>) => {

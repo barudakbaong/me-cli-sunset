@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { sessionMiddleware } from "./middleware/session";
+import { staticAssetsMiddleware } from "./middleware/static-assets";
 import { myxlAuth } from "./routes/auth";
 import { bookmark } from "./routes/bookmark";
 import { circle } from "./routes/circle";
@@ -29,7 +30,21 @@ export { FamilyLoopDO } from "./durable-objects/family-loop";
 
 const app = new Hono<AppEnv>();
 
+app.use("*", staticAssetsMiddleware);
 app.use("*", sessionMiddleware);
+
+app.onError((err, c) => {
+  console.error("worker error", c.req.method, c.req.path, err);
+  const accept = c.req.header("accept") ?? "";
+  if (accept.includes("text/html") || c.req.path.startsWith("/u/")) {
+    const html = renderErrorPage(c.req.raw, {
+      title: "Error",
+      message: "Terjadi kesalahan internal. Coba lagi dalam beberapa detik.",
+    });
+    return htmlResponse(html, 500);
+  }
+  return c.json({ ok: false, error: "Internal Server Error" }, 500);
+});
 
 app.get("/health", (c) =>
   c.json({

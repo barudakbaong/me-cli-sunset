@@ -57,4 +57,14 @@ describe("D1R2Backend", () => {
     expect(await store.blobExists("alice", USER_BOOKMARK)).toBe(false);
     expect(r2.getStored(userR2Path("alice", USER_BOOKMARK))).toBeUndefined();
   });
+
+  it("stores encrypted blobs in D1 when R2 is unavailable", async () => {
+    const db = new InMemoryD1Database();
+    const store = new D1R2Backend({ DB: db, STORAGE_ENCRYPTION_KEY: TEST_KEY });
+    await store.putBlob("alice", USER_REFRESH_TOKENS, "[]");
+    expect(await store.getBlob("alice", USER_REFRESH_TOKENS)).toBe("[]");
+    expect(await store.blobExists("alice", USER_REFRESH_TOKENS)).toBe(true);
+    await store.deleteBlob("alice", USER_REFRESH_TOKENS);
+    expect(await store.blobExists("alice", USER_REFRESH_TOKENS)).toBe(false);
+  });
 });

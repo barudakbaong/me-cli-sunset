@@ -38,6 +38,25 @@ describe("e2e local smoke", () => {
     expect(res.location).toContain("/u/login");
   });
 
+  it("webui login form sets session cookie and unlocks dashboard redirect", async () => {
+    const env: Env = { ENVIRONMENT: "development" };
+    const c = client(env);
+    const username = `login_${Date.now().toString(36)}`;
+    const password = "secret12";
+    const created = await createUser(resolveStorage(env), username, password);
+    expect(created.ok).toBe(true);
+
+    const login = await c.postForm("/u/login", { username, password, next: "/" });
+    expect(login.status).toBe(303);
+    expect(login.location).toBe("/");
+
+    const dash = await c.get("/");
+    // WebUI session OK — new users without MyXL OTP go to /login, not back to /u/login
+    expect(dash.status).toBe(303);
+    expect(dash.location ?? "").toContain("/login");
+    expect(dash.location ?? "").not.toContain("/u/login");
+  });
+
   it("public pages render", async () => {
     const c = client();
     for (const route of PUBLIC_ROUTES) {

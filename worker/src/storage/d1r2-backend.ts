@@ -16,6 +16,10 @@ function randomSecret(bytes = 32): Uint8Array {
   return crypto.getRandomValues(new Uint8Array(bytes));
 }
 
+function blobMetaKey(r2Path: string): string {
+  return `blob:${r2Path}`;
+}
+
 function decodeSessionSecret(raw: string): Uint8Array {
   const trimmed = raw.trim();
   if (!trimmed) return new Uint8Array();
@@ -121,6 +125,46 @@ export class D1R2Backend implements StorageBackend {
     // R2 has no directories — index row created on first putBlob.
   }
 
+  private async readBlobBytes(r2Path: string): Promise<Uint8Array | null> {
+    if (this.env.DATA) {
+      const obj = await this.env.DATA.get(r2Path);
+      if (!obj) return null;
+      return new Uint8Array(await obj.arrayBuffer());
+    }
+
+    const row = await this.env.DB.prepare("SELECT value FROM storage_meta WHERE key = ?")
+      .bind(blobMetaKey(r2Path))
+      .first<{ value: ArrayBuffer }>();
+    if (!row?.value) return null;
+    return new Uint8Array(row.value);
+  }
+
+  private async writeBlobBytes(r2Path: string, stored: Uint8Array): Promise<void> {
+    if (this.env.DATA) {
+      await this.env.DATA.put(r2Path, stored);
+      return;
+    }
+
+    const ts = nowSec();
+    await this.env.DB.prepare(
+      `INSERT INTO storage_meta (key, value, updated_at) VALUES (?, ?, ?)
+       ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
+    )
+      .bind(blobMetaKey(r2Path), stored, ts)
+      .run();
+  }
+
+  private async removeBlobBytes(r2Path: string): Promise<void> {
+    if (this.env.DATA) {
+      await this.env.DATA.delete(r2Path);
+      return;
+    }
+
+    await this.env.DB.prepare("DELETE FROM storage_meta WHERE key = ?")
+      .bind(blobMetaKey(r2Path))
+      .run();
+  }
+
   async getBlob(
     username: string | null,
     key: string,
@@ -129,10 +173,9 @@ export class D1R2Backend implements StorageBackend {
     const loc = resolveBlobLocation(username, key);
     if (!loc) return null;
 
-    const obj = await this.env.DATA.get(loc.r2Path);
-    if (!obj) return null;
+    const raw = await this.readBlobBytes(loc.r2Path);
+    if (!raw) return null;
 
-    const raw = new Uint8Array(await obj.arrayBuffer());
     const plain = await this.maybeDecrypt(loc.objectKey, raw);
     if (options.binary) return plain;
     return utf8Decode(plain);
@@ -151,7 +194,7 @@ export class D1R2Backend implements StorageBackend {
     const stored = await this.maybeEncrypt(loc.objectKey, payload);
     const ts = nowSec();
 
-    await this.env.DATA.put(loc.r2Path, stored);
+    await this.writeBlobBytes(loc.r2Path, stored);
     await this.env.DB.prepare(
       `INSERT INTO r2_objects (scope, username, object_key, r2_path, size_bytes, updated_at)
        VALUES (?, ?, ?, ?, ?, ?)
@@ -168,7 +211,7 @@ export class D1R2Backend implements StorageBackend {
     const loc = resolveBlobLocation(username, key);
     if (!loc) return;
 
-    await this.env.DATA.delete(loc.r2Path);
+    await this.removeBlobBytes(loc.r2Path);
     await this.env.DB.prepare(
       `DELETE FROM r2_objects WHERE scope = ? AND username = ? AND object_key = ?`,
     )
@@ -187,8 +230,15 @@ export class D1R2Backend implements StorageBackend {
       .first<{ ok: number }>();
     if (row) return true;
 
-    const head = await this.env.DATA.head(loc.r2Path);
-    return head !== null;
+    if (this.env.DATA) {
+      const head = await this.env.DATA.head(loc.r2Path);
+      return head !== null;
+    }
+
+    const metaRow = await this.env.DB.prepare("SELECT 1 AS ok FROM storage_meta WHERE key = ?")
+      .bind(blobMetaKey(loc.r2Path))
+      .first<{ ok: number }>();
+    return metaRow != null;
   }
 
   async listBlobs(username: string | null, prefix = ""): Promise<string[]> {
@@ -226,8 +276,8 @@ export class D1R2Backend implements StorageBackend {
 }
 
 export function createStorage(env: StorageBindings, options?: D1R2BackendOptions): StorageBackend {
-  if (!env.DB || !env.DATA) {
-    throw new Error("D1R2Backend requires DB and DATA bindings");
+  if (!env.DB) {
+    throw new Error("D1R2Backend requires DB binding");
   }
   return new D1R2Backend(env, options);
 }

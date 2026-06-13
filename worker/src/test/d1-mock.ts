@@ -97,6 +97,17 @@ class MockPreparedStatement implements D1PreparedStatement {
       return [];
     }
 
+    if (sql.startsWith("delete from storage_meta")) {
+      const [key] = this.binds as [string];
+      this.db.meta.delete(key);
+      return [];
+    }
+
+    if (sql.startsWith("select 1 as ok from storage_meta")) {
+      const [key] = this.binds as [string];
+      return this.db.meta.has(key) ? ([{ ok: 1 }] as T[]) : [];
+    }
+
     if (sql.startsWith("insert into r2_objects")) {
       const [scope, username, object_key, r2_path, size_bytes, updated_at] = this.binds as [
         string,

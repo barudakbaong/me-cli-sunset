@@ -70,7 +70,19 @@ export function createCiamClient(options: CiamClientOptions) {
   }
 
   async function getOtp(contact: string): Promise<string | null> {
-    if (!validateContact(contact)) return null;
+    const result = await getOtpResult(contact);
+    return result.ok ? result.subscriberId : null;
+  }
+
+  async function getOtpResult(
+    contact: string,
+  ): Promise<
+    | { ok: true; subscriberId: string }
+    | { ok: false; error: string; status: number }
+  > {
+    if (!validateContact(contact)) {
+      return { ok: false, error: "Nomor tidak valid.", status: 0 };
+    }
 
     const url = new URL(`${config.baseCiamUrl}/realms/xl-ciam/auth/otp`);
     url.searchParams.set("contact", contact);
@@ -81,11 +93,18 @@ export function createCiamClient(options: CiamClientOptions) {
     const res = await fetchFn(url.toString(), { method: "GET", headers });
     const text = await res.text();
     try {
-      const body = JSON.parse(text) as { subscriber_id?: string; error?: string };
-      if (!body.subscriber_id) return null;
-      return body.subscriber_id;
+      const body = JSON.parse(text) as {
+        subscriber_id?: string;
+        error?: string;
+        error_description?: string;
+      };
+      if (body.subscriber_id) {
+        return { ok: true, subscriberId: body.subscriber_id };
+      }
+      const msg = body.error_description || body.error || `HTTP ${res.status}`;
+      return { ok: false, error: msg, status: res.status };
     } catch {
-      return null;
+      return { ok: false, error: text.slice(0, 200) || `HTTP ${res.status}`, status: res.status };
     }
   }
 
@@ -196,7 +215,7 @@ export function createCiamClient(options: CiamClientOptions) {
     return json;
   }
 
-  return { validateContact, getOtp, extendSession, submitOtp, refreshToken };
+  return { validateContact, getOtp, getOtpResult, extendSession, submitOtp, refreshToken };
 }
 
 export type CiamClient = ReturnType<typeof createCiamClient>;

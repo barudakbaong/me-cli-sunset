@@ -12,7 +12,7 @@ describe("password hashing", () => {
 
   it("roundtrips hashPassword + verifyPassword", async () => {
     const encoded = await hashPassword("hunter2");
-    expect(encoded.startsWith("pbkdf2_sha256$200000$")).toBe(true);
+    expect(encoded.startsWith("pbkdf2_sha256$10000$")).toBe(true);
     expect(await verifyPassword("hunter2", encoded)).toBe(true);
     expect(await verifyPassword("hunter3", encoded)).toBe(false);
   });

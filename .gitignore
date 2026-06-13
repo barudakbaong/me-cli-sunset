@@ -16,6 +16,7 @@ active.number
 webui_data/
 monitor.log
 session.secret
+manifest-production.json
 
 # Python venv
 venv/

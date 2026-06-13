@@ -20,8 +20,10 @@ load_dotenv(PROJECT_DIR / ".env")
 from scripts.migration_common import WORKER_DIR, sha256_hex  # noqa: E402
 
 
-def run_wrangler_json(args: list[str]) -> object:
-    cmd = ["wrangler", *args, "--json"]
+def run_wrangler_json(args: list[str], *, wrangler_env: str | None = None) -> object:
+    cmd = ["npx", "wrangler", *args, "--json"]
+    if wrangler_env:
+        cmd.extend(["--env", wrangler_env])
     proc = subprocess.run(cmd, cwd=WORKER_DIR, capture_output=True, text=True, check=False)
     if proc.returncode != 0:
         raise RuntimeError(proc.stderr.strip() or proc.stdout.strip() or f"wrangler failed: {cmd}")
@@ -31,11 +33,11 @@ def run_wrangler_json(args: list[str]) -> object:
     return json.loads(out)
 
 
-def d1_query(d1_name: str, sql: str, *, remote: bool) -> list[dict]:
+def d1_query(d1_name: str, sql: str, *, remote: bool, wrangler_env: str | None = None) -> list[dict]:
     args = ["d1", "execute", d1_name, "--command", sql]
     if remote:
         args.append("--remote")
-    data = run_wrangler_json(args)
+    data = run_wrangler_json(args, wrangler_env=wrangler_env)
     if isinstance(data, list) and data and isinstance(data[0], dict) and "results" in data[0]:
         return data[0].get("results") or []
     if isinstance(data, list):
@@ -43,13 +45,21 @@ def d1_query(d1_name: str, sql: str, *, remote: bool) -> list[dict]:
     return []
 
 
-def download_r2_object(bucket: str, r2_path: str, *, remote: bool) -> bytes:
+def download_r2_object(
+    bucket: str,
+    r2_path: str,
+    *,
+    remote: bool,
+    wrangler_env: str | None = None,
+) -> bytes:
     with tempfile.NamedTemporaryFile(delete=False) as fh:
         tmp = fh.name
     args = ["r2", "object", "get", f"{bucket}/{r2_path}", "--file", tmp]
     if remote:
         args.append("--remote")
-    proc = subprocess.run(["wrangler", *args], cwd=WORKER_DIR, capture_output=True, check=False)
+    if wrangler_env:
+        args.extend(["--env", wrangler_env])
+    proc = subprocess.run(["npx", "wrangler", *args], cwd=WORKER_DIR, capture_output=True, check=False)
     if proc.returncode != 0:
         raise RuntimeError(proc.stderr.decode() or proc.stdout.decode())
     data = Path(tmp).read_bytes()
@@ -94,13 +104,26 @@ def verify_bundle(bundle_dir: Path, manifest: dict) -> list[str]:
     return errors
 
 
-def verify_remote(manifest: dict, *, d1_name: str, r2_bucket: str, remote: bool) -> list[str]:
+def verify_remote(
+    manifest: dict,
+    *,
+    d1_name: str,
+    r2_bucket: str,
+    remote: bool,
+    wrangler_env: str | None = None,
+) -> list[str]:
     errors: list[str] = []
     expected = manifest.get("counts", {})
 
-    user_rows = d1_query(d1_name, "SELECT COUNT(*) AS c FROM webui_users", remote=remote)
-    rule_rows = d1_query(d1_name, "SELECT COUNT(*) AS c FROM monitoring_rules", remote=remote)
-    obj_rows = d1_query(d1_name, "SELECT COUNT(*) AS c FROM r2_objects", remote=remote)
+    user_rows = d1_query(
+        d1_name, "SELECT COUNT(*) AS c FROM webui_users", remote=remote, wrangler_env=wrangler_env
+    )
+    rule_rows = d1_query(
+        d1_name, "SELECT COUNT(*) AS c FROM monitoring_rules", remote=remote, wrangler_env=wrangler_env
+    )
+    obj_rows = d1_query(
+        d1_name, "SELECT COUNT(*) AS c FROM r2_objects", remote=remote, wrangler_env=wrangler_env
+    )
 
     def _count(rows: list[dict]) -> int:
         if not rows:
@@ -122,7 +145,9 @@ def verify_remote(manifest: dict, *, d1_name: str, r2_bucket: str, remote: bool)
     for sample in manifest.get("checksum_sample", []):
         r2_path = sample["r2_path"]
         try:
-            data = download_r2_object(r2_bucket, r2_path, remote=remote)
+            data = download_r2_object(
+                r2_bucket, r2_path, remote=remote, wrangler_env=wrangler_env
+            )
         except Exception as exc:
             errors.append(f"download failed {r2_path}: {exc}")
             continue
@@ -144,6 +169,7 @@ def main() -> int:
     parser.add_argument("--d1", default="webui-xl")
     parser.add_argument("--r2-bucket", default="webui-xl-data")
     parser.add_argument("--remote", action="store_true")
+    parser.add_argument("--wrangler-env", default=None, help="Wrangler env (e.g. production)")
     args = parser.parse_args()
 
     manifest = load_manifest(args.manifest)
@@ -161,6 +187,7 @@ def main() -> int:
             d1_name=args.d1,
             r2_bucket=args.r2_bucket,
             remote=args.remote,
+            wrangler_env=args.wrangler_env,
         )
 
     if errors:

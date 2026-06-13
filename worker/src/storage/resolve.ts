@@ -6,7 +6,7 @@ import type { StorageBackend } from "./types";
 let devSingleton: MemoryStorageBackend | null = null;
 
 export function resolveStorage(env: Env): StorageBackend {
-  if (env.DB && env.DATA) {
+  if (env.DB) {
     return new D1R2Backend({
       DB: env.DB,
       DATA: env.DATA,
@@ -20,5 +20,5 @@ export function resolveStorage(env: Env): StorageBackend {
     return devSingleton;
   }
 
-  throw new Error("Storage bindings DB and DATA are required in production");
+  throw new Error("Storage binding DB is required outside development");
 }

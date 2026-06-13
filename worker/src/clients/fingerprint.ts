@@ -33,15 +33,36 @@ export function axDeviceId(fingerprint: string): string {
     .join("");
 }
 
+/** Real device fingerprints are AES-CBC base64 blobs (~128 chars), not short hex device ids. */
+export function isLikelyAxFingerprint(value: string): boolean {
+  const v = value.trim();
+  return v.length >= 64;
+}
+
+async function readCliAxFingerprint(storage: StorageBackend): Promise<string | null> {
+  const cliFp = await storage.getBlob(null, USER_AX_FP);
+  if (cliFp && typeof cliFp === "string" && cliFp.trim()) return cliFp.trim();
+  return null;
+}
+
 export async function loadAxFingerprint(
   storage: StorageBackend,
   username: string,
   secrets: CryptoSecrets,
   override?: string,
 ): Promise<string> {
-  if (override?.trim()) return override.trim();
   const existing = await storage.getBlob(username, USER_AX_FP);
-  if (existing && typeof existing === "string" && existing.trim()) return existing.trim();
+  if (existing && typeof existing === "string" && isLikelyAxFingerprint(existing)) {
+    return existing.trim();
+  }
+
+  if (override?.trim() && isLikelyAxFingerprint(override)) return override.trim();
+
+  const cliFp = await readCliAxFingerprint(storage);
+  if (cliFp) {
+    await storage.putBlob(username, USER_AX_FP, cliFp);
+    return cliFp;
+  }
 
   const fp = await axFingerprint(secrets, DEFAULT_DEVICE);
   await storage.putBlob(username, USER_AX_FP, fp);

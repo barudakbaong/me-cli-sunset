@@ -478,7 +478,6 @@ def build_d1_sql(plan: MigrationPlan, now: Optional[int] = None) -> str:
     ts = now or int(time.time())
     lines: list[str] = [
         "PRAGMA foreign_keys = ON;",
-        "BEGIN TRANSACTION;",
         f"INSERT OR REPLACE INTO schema_version (id, version, applied_at) VALUES (1, {SCHEMA_VERSION}, {ts});",
         "DELETE FROM monitoring_rules;",
         "DELETE FROM r2_objects;",
@@ -522,7 +521,6 @@ def build_d1_sql(plan: MigrationPlan, now: Optional[int] = None) -> str:
             f"{sql_str(obj.r2_path)}, {obj.size_bytes}, {ts});"
         )
 
-    lines.append("COMMIT;")
     return "\n".join(lines) + "\n"
 
 

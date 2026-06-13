@@ -97,10 +97,18 @@ myxlAuth.post("/login/request-otp", async (c) => {
     return renderLogin({ error: `Konfigurasi MyXL belum lengkap: ${e}` });
   }
 
-  const subscriberId = await clients.ciam.getOtp(phone);
-  if (!subscriberId) {
-    return renderLogin({ error: "Gagal kirim OTP. Cek nomor & coba lagi." });
+  const otpResult = await clients.ciam.getOtpResult(phone);
+  if (!otpResult.ok) {
+    const detail = otpResult.error;
+    const hint =
+      detail.toLowerCase().includes("user not found")
+        ? "Nomor tidak terdaftar di MyXL atau bukan nomor XL prabayar aktif."
+        : detail;
+    return renderLogin({
+      error: `Gagal kirim OTP: ${hint}`,
+    });
   }
+  const subscriberId = otpResult.subscriberId;
 
   await saveOtpPending(storage, webuiUser.username, phone, subscriberId);
   return htmlResponse(

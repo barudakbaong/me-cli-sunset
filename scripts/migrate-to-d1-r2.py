@@ -29,8 +29,10 @@ from scripts.migration_common import (  # noqa: E402
 from webui.storage.sqlite_backend import default_db_path  # noqa: E402
 
 
-def run_wrangler(args: list[str], *, dry_run: bool) -> int:
-    cmd = ["wrangler", *args]
+def run_wrangler(args: list[str], *, dry_run: bool, wrangler_env: str | None = None) -> int:
+    cmd = ["npx", "wrangler", *args]
+    if wrangler_env:
+        cmd.extend(["--env", wrangler_env])
     label = " ".join(cmd)
     if dry_run:
         print(f"[dry-run] {label}")
@@ -40,33 +42,47 @@ def run_wrangler(args: list[str], *, dry_run: bool) -> int:
     return proc.returncode
 
 
-def apply_d1_migrations(d1_name: str, *, remote: bool, dry_run: bool) -> int:
+def apply_d1_migrations(
+    d1_name: str,
+    *,
+    remote: bool,
+    dry_run: bool,
+    wrangler_env: str | None = None,
+) -> int:
     args = ["d1", "migrations", "apply", d1_name]
     if remote:
         args.append("--remote")
-    return run_wrangler(args, dry_run=dry_run)
+    return run_wrangler(args, dry_run=dry_run, wrangler_env=wrangler_env)
 
 
-def execute_d1_sql(d1_name: str, sql: str, *, remote: bool, dry_run: bool) -> int:
+def execute_d1_sql(d1_name: str, sql: str, *, remote: bool, dry_run: bool, wrangler_env: str | None = None) -> int:
     with tempfile.NamedTemporaryFile("w", suffix=".sql", delete=False, encoding="utf-8") as fh:
         fh.write(sql)
         sql_path = fh.name
     args = ["d1", "execute", d1_name, "--file", sql_path]
     if remote:
         args.append("--remote")
-    rc = run_wrangler(args, dry_run=dry_run)
+    rc = run_wrangler(args, dry_run=dry_run, wrangler_env=wrangler_env)
     Path(sql_path).unlink(missing_ok=True)
     return rc
 
 
-def upload_r2_object(bucket: str, r2_path: str, payload: bytes, *, remote: bool, dry_run: bool) -> int:
+def upload_r2_object(
+    bucket: str,
+    r2_path: str,
+    payload: bytes,
+    *,
+    remote: bool,
+    dry_run: bool,
+    wrangler_env: str | None = None,
+) -> int:
     with tempfile.NamedTemporaryFile(delete=False) as fh:
         fh.write(payload)
         tmp = fh.name
     args = ["r2", "object", "put", f"{bucket}/{r2_path}", "--file", tmp]
     if remote:
         args.append("--remote")
-    rc = run_wrangler(args, dry_run=dry_run)
+    rc = run_wrangler(args, dry_run=dry_run, wrangler_env=wrangler_env)
     Path(tmp).unlink(missing_ok=True)
     return rc
 
@@ -105,11 +121,22 @@ def migrate(plan: MigrationPlan, args: argparse.Namespace) -> dict:
         return manifest
 
     if not args.skip_migrations:
-        rc = apply_d1_migrations(args.d1, remote=args.remote, dry_run=args.dry_run)
+        rc = apply_d1_migrations(
+            args.d1,
+            remote=args.remote,
+            dry_run=args.dry_run,
+            wrangler_env=args.wrangler_env,
+        )
         if rc != 0:
             raise SystemExit(rc)
 
-    rc = execute_d1_sql(args.d1, sql, remote=args.remote, dry_run=args.dry_run)
+    rc = execute_d1_sql(
+        args.d1,
+        sql,
+        remote=args.remote,
+        dry_run=args.dry_run,
+        wrangler_env=args.wrangler_env,
+    )
     if rc != 0:
         raise SystemExit(rc)
 
@@ -120,6 +147,7 @@ def migrate(plan: MigrationPlan, args: argparse.Namespace) -> dict:
             obj.payload,
             remote=args.remote,
             dry_run=args.dry_run,
+            wrangler_env=args.wrangler_env,
         )
         if rc != 0:
             raise SystemExit(rc)
@@ -134,6 +162,7 @@ def migrate(plan: MigrationPlan, args: argparse.Namespace) -> dict:
         manifest_bytes,
         remote=args.remote,
         dry_run=args.dry_run,
+        wrangler_env=args.wrangler_env,
     )
     if rc != 0:
         raise SystemExit(rc)
@@ -169,6 +198,11 @@ def main() -> int:
         help="Write SQL + R2 payloads + manifest locally (no wrangler)",
     )
     parser.add_argument("--write-manifest", type=Path, default=None, help="Also save manifest.json locally")
+    parser.add_argument(
+        "--wrangler-env",
+        default=None,
+        help="Wrangler environment from wrangler.toml (e.g. production, staging)",
+    )
     args = parser.parse_args()
 
     if args.dry_run and not args.bundle_dir:

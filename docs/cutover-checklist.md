@@ -107,6 +107,8 @@ E2E_TELEGRAM_WEBHOOK_SECRET=<optional-secret> \
 
 ## References
 
+- **Production runbook:** [cutover-runbook.md](cutover-runbook.md) (DNS, secrets, VPS decommission)
 - Migration: `scripts/migrate-to-d1-r2.py`, `scripts/verify-migration.py`
 - Design: `docs/DESIGN-cf-worker-migration.md`
 - E2E tests: `worker/e2e/`
+- Wrangler envs: `worker/wrangler.toml` (`--env staging` / `--env production`)

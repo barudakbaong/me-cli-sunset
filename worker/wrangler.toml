@@ -16,40 +16,79 @@ binding = "ASSETS"
 ENVIRONMENT = "development"
 # Local dev: wrangler secret put SESSION_SECRET (or uses in-memory storage session key)
 
-# Uncomment and fill after `wrangler d1 create` / `wrangler r2 bucket create`
-# [[d1_databases]]
-# binding = "DB"
-# database_name = "webui-xl"
-# database_id = "<d1-id>"
-# migrations_dir = "migrations"
-
-# [[r2_buckets]]
-# binding = "DATA"
-# bucket_name = "webui-xl-data"
-
-# [[kv_namespaces]]
-# binding = "KV"
-# id = "<kv-id>"
-
-# [[queues.producers]]
-# binding = "PURCHASE_QUEUE"
-# queue = "purchase-jobs"
-
-# [[queues.consumers]]
-# queue = "purchase-jobs"
-# max_batch_size = 1
-# max_retries = 3
-
-# [[durable_objects.bindings]]
-# name = "FAMILY_LOOP"
-# class_name = "FamilyLoopDO"
-
-# [[migrations]]
-# tag = "v1"
-# new_classes = ["FamilyLoopDO"]
-
 [triggers]
 crons = ["*/5 * * * *"]
 
 [dev]
 port = 8787
+
+# ---------------------------------------------------------------------------
+# Staging — deploy: npx wrangler deploy --env staging
+# ---------------------------------------------------------------------------
+[env.staging]
+name = "webui-xl-staging"
+vars = { ENVIRONMENT = "staging" }
+
+[[env.staging.d1_databases]]
+binding = "DB"
+database_name = "webui-xl-staging"
+database_id = "<staging-d1-id>"
+migrations_dir = "migrations"
+
+[[env.staging.r2_buckets]]
+binding = "DATA"
+bucket_name = "webui-xl-staging-data"
+
+# [[env.staging.queues.producers]]
+# binding = "PURCHASE_QUEUE"
+# queue = "purchase-jobs-staging"
+
+# [[env.staging.queues.consumers]]
+# queue = "purchase-jobs-staging"
+# max_batch_size = 1
+# max_retries = 3
+
+# [[env.staging.durable_objects.bindings]]
+# name = "FAMILY_LOOP"
+# class_name = "FamilyLoopDO"
+
+# [[env.staging.migrations]]
+# tag = "v1"
+# new_classes = ["FamilyLoopDO"]
+
+# ---------------------------------------------------------------------------
+# Production — deploy: npx wrangler deploy --env production
+# ---------------------------------------------------------------------------
+[env.production]
+name = "webui-xl"
+vars = { ENVIRONMENT = "production" }
+
+# Uncomment and set your hostname after adding the domain in Cloudflare dashboard:
+# routes = [{ pattern = "webui.example.com", custom_domain = true }]
+
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "webui-xl"
+database_id = "<production-d1-id>"
+migrations_dir = "migrations"
+
+[[env.production.r2_buckets]]
+binding = "DATA"
+bucket_name = "webui-xl-data"
+
+# [[env.production.queues.producers]]
+# binding = "PURCHASE_QUEUE"
+# queue = "purchase-jobs"
+
+# [[env.production.queues.consumers]]
+# queue = "purchase-jobs"
+# max_batch_size = 1
+# max_retries = 3
+
+# [[env.production.durable_objects.bindings]]
+# name = "FAMILY_LOOP"
+# class_name = "FamilyLoopDO"
+
+# [[env.production.migrations]]
+# tag = "v1"
+# new_classes = ["FamilyLoopDO"]

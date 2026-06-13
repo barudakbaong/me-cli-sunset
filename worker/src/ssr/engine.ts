@@ -31,6 +31,7 @@ export function themeClass(userTheme?: string): string {
 export function buildLayoutContext(request: Request, extra: RenderContext = {}): RenderContext {
   const path = new URL(request.url).pathname;
   const bottom = buildBottomNav(path);
+  const webuiUser = extra.webui_user as { username?: string } | undefined;
   return {
     path,
     page_title: "WebUI-XL",
@@ -41,6 +42,7 @@ export function buildLayoutContext(request: Request, extra: RenderContext = {}):
     bottom_hot: bottom.hot,
     bottom_transactions: bottom.transactions,
     bottom_bookmark: bottom.bookmark,
+    webui_user: webuiUser?.username ? { username: webuiUser.username } : undefined,
     ...extra,
   };
 }

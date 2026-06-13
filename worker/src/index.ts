@@ -1,8 +1,13 @@
 import { Hono } from "hono";
-import type { Env } from "./env";
-import { htmlResponse, renderErrorPage, renderLayout, renderWebuiLogin } from "./ssr";
+import { getTheme } from "./auth/users";
+import { sessionMiddleware } from "./middleware/session";
+import { webuiAuth } from "./routes/webui-auth";
+import { htmlResponse, renderErrorPage, renderLayout } from "./ssr";
+import type { AppEnv } from "./types";
 
-const app = new Hono<{ Bindings: Env }>();
+const app = new Hono<AppEnv>();
+
+app.use("*", sessionMiddleware);
 
 app.get("/health", (c) =>
   c.json({
@@ -12,36 +17,24 @@ app.get("/health", (c) =>
   }),
 );
 
+app.route("/", webuiAuth);
+
 app.get("/", (c) => {
+  const user = c.get("webuiUser");
   const html = renderLayout(
     "error_body",
     c.req.raw,
     {
       title: "WebUI-XL",
-      message: "Phase 2 Worker — SSR engine ready. Login di /u/login.",
+      message: user
+        ? `Halo, ${user.username}! Phase 2 Worker — MyXL routes coming in PR-13+.`
+        : "Phase 2 Worker — SSR + session ready.",
       message_pre: false,
       page_title: "WebUI-XL",
+      webui_user: user ? { username: user.username } : undefined,
+      user_theme: getTheme(user),
     },
   );
-  return htmlResponse(html);
-});
-
-app.get("/u/login", (c) => {
-  const url = new URL(c.req.url);
-  const html = renderWebuiLogin(c.req.raw, {
-    mode: "login",
-    username: url.searchParams.get("username") ?? undefined,
-    users_count: 0,
-    next: url.searchParams.get("next") ?? "/",
-  });
-  return htmlResponse(html);
-});
-
-app.get("/u/register", (c) => {
-  const html = renderWebuiLogin(c.req.raw, {
-    mode: "register",
-    users_count: 0,
-  });
   return htmlResponse(html);
 });
 

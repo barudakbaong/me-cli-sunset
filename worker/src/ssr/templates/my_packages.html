@@ -24,7 +24,7 @@
     <div class="min-w-0">
       <div class="text-xs text-slate-400 truncate">{{group_name}}</div>
       <div class="font-bold text-lg truncate">{{name}}</div>
-      {{#expired_at}}<div class="text-xs text-slate-500 mt-0.5">Aktif s/d {{expired_at | date}}</div>{{/expired_at}}
+      {{#has_expired_at}}<div class="text-xs text-slate-500 mt-0.5">Aktif s/d {{expired_at_display}}</div>{{/has_expired_at}}
     </div>
     <div class="flex gap-2 shrink-0">
       <a class="btn btn-secondary text-xs" href="/packages/by-option?code={{quota_code}}">Detail</a>

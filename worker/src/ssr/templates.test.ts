@@ -75,6 +75,27 @@ describe("MyXL templates", () => {
     expect(html).toContain("Memproses pembelian");
   });
 
+  it("renders my packages with Aktif s/d date", () => {
+    const html = renderLayout("my_packages", new Request("http://localhost/packages/my"), {
+      page_title: "Paket Saya",
+      has_quotas: true,
+      quotas: [
+        {
+          name: "Xtra Combo",
+          quota_code: "OPT1",
+          group_name: "Internet",
+          has_expired_at: true,
+          expired_at_display: "15 Juni 2026",
+          has_benefits: false,
+          benefits: [],
+          product_domain: "",
+          product_subscription_type: "",
+        },
+      ],
+    });
+    expect(html).toContain("Aktif s/d 15 Juni 2026");
+  });
+
   it("renders dashboard with active user", () => {
     const html = renderLayout("dashboard", new Request("http://localhost/"), {
       page_title: "Beranda",

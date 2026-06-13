@@ -4,6 +4,7 @@ from app.client.engsel import get_package, get_family, get_profile, send_api_req
 from app.service.auth import AuthInstance
 from app.menus.util import format_quota_byte
 from webui.deps import render, get_active_user_safe
+from webui.helpers import format_date
 from webui.routes.decoy_settings import list_custom_decoys
 
 router = APIRouter()
@@ -24,8 +25,26 @@ def by_option(request: Request, code: str | None = Query(None), enterprise: bool
     if not pkg:
         return render(request, "error.html", title="Tidak ditemukan", message=f"Option code {code} tidak ditemukan.")
 
+    active_expiry_display = ""
+    try:
+        quota_res = send_api_request(
+            AuthInstance.api_key,
+            "api/v8/packages/quota-details",
+            {"is_enterprise": False, "lang": "en", "family_member_id": ""},
+            user["tokens"]["id_token"],
+            "POST",
+        )
+        if isinstance(quota_res, dict) and quota_res.get("status") == "SUCCESS":
+            for q in quota_res.get("data", {}).get("quotas", []) or []:
+                if q.get("quota_code") == code and q.get("expired_at"):
+                    active_expiry_display = format_date(q.get("expired_at"))
+                    break
+    except Exception:
+        pass
+
     return render(request, "package_detail.html",
                   pkg=pkg, code=code, is_enterprise=enterprise,
+                  active_expiry_display=active_expiry_display,
                   custom_decoys=list_custom_decoys())
 
 
@@ -92,12 +111,22 @@ def my_packages(request: Request):
                 "rem_disp": disp_rem, "tot_disp": disp_tot, "unit": unit, "pct": pct,
                 "is_unlimited": b.get("is_unlimited", False),
             })
+        exp_raw = q.get("expired_at")
+        exp_ts = None
+        if exp_raw:
+            try:
+                exp_ts = int(exp_raw)
+                if exp_ts > 1_000_000_000_000:
+                    exp_ts //= 1000
+            except (TypeError, ValueError):
+                exp_ts = None
         formatted.append({
             "name": q.get("name", "-"),
             "quota_code": q.get("quota_code", ""),
             "group_name": q.get("group_name", ""),
             "group_code": q.get("group_code", ""),
-            "expired_at": q.get("expired_at"),
+            "expired_at": exp_ts,
+            "expired_at_display": format_date(exp_ts) if exp_ts else "",
             "product_domain": q.get("product_domain", ""),
             "product_subscription_type": q.get("product_subscription_type", ""),
             "benefits": benefits,

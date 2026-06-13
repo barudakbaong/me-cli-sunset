@@ -15,6 +15,7 @@
       <h1 class="text-xl font-bold">{{ opt.name }}</h1>
       <div class="text-2xl font-bold text-indigo-300 mt-2">{{ opt.price | rp }}</div>
       <div class="text-sm text-slate-400 mt-1">Masa aktif: {{ opt.validity }}</div>
+      {% if active_expiry_display %}<div class="text-sm text-slate-400 mt-1">Aktif s/d {{ active_expiry_display }}</div>{% endif %}
       {% if opt.point %}<div class="text-sm text-slate-400">Point: {{ opt.point }}</div>{% endif %}
     </div>
     <form action="/bookmark/add" method="post" class="shrink-0">

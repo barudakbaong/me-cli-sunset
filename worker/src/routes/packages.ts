@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { formatFamilyDetail, formatPackageDetail } from "../myxl/packages";
-import { formatMyPackages } from "../myxl/quota";
+import { activeExpiryForQuota, formatMyPackages } from "../myxl/quota";
 import { renderActivePage, requireActiveSession , renderAppErrorPage} from "../myxl/require";
 import type { AppEnv } from "../types";
 
@@ -22,13 +22,28 @@ packages.get("/packages/by-option", async (c) => {
   }
 
   try {
-    const pkg = await session.clients.engsel.getPackage(session.activeUser.tokens.id_token, code);
+    const idToken = session.activeUser.tokens.id_token;
+    const pkg = await session.clients.engsel.getPackage(idToken, code);
     if (!pkg) {
       return renderAppErrorPage(c, { title: "Tidak ditemukan", message: `Option code ${code} tidak ditemukan.` }, 404);
     }
+
+    let activeExpiry = { has_active_expiry: false, active_expiry_display: "" };
+    try {
+      const quotaRes = await session.clients.engsel.getQuotaDetailsRaw(idToken);
+      if (quotaRes?.status === "SUCCESS") {
+        const quotas =
+          ((quotaRes.data as Record<string, unknown>)?.quotas as Record<string, unknown>[]) ?? [];
+        activeExpiry = activeExpiryForQuota(quotas, code);
+      }
+    } catch {
+      /* optional — catalog detail still renders */
+    }
+
     return renderActivePage(c, session, "package_detail", {
       page_title: `${formatPackageDetail(pkg, code).opt_name} · WebUI-XL`,
       ...formatPackageDetail(pkg, code),
+      ...activeExpiry,
     });
   } catch (e) {
     return renderAppErrorPage(c, { title: "Gagal fetch", message: String(e) }, 500);

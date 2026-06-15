@@ -81,7 +81,7 @@ describe("MyXL templates", () => {
       ],
     });
     expect(html).toContain("Item Dibeli");
-    expect(html).toContain("neu-inset-card");
+    expect(html).toContain("neu-box-sm");
     expect(html).toContain("myPRIO Silver Talk+");
   });
 

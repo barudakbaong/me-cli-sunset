@@ -122,6 +122,7 @@ export async function processPurchaseJob(env: Env, msg: PurchaseQueueMessage): P
           msg.paymentFor,
           msg.walletNumber,
           msg.qrisAmount,
+          msg.overwriteAmount ?? -1,
         );
       }
     }

@@ -17,6 +17,7 @@ export interface PurchaseJobPayload {
   optionCode?: string;
   familyCode?: string;
   variantCode?: string;
+  overwriteAmount?: number;
   hot2Idx?: number;
   createdAt: number;
 }

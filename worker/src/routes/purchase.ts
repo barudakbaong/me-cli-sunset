@@ -239,6 +239,7 @@ purchase.post("/purchase/:option_code", async (c) => {
   const variantCode = String(body.variant_code ?? "").trim();
   const walletNumber = String(body.wallet_number ?? "");
   const qrisAmount = parseFormInt(String(body.qris_amount ?? ""), -1);
+  const overwriteAmount = parseFormInt(String(body.overwrite_amount ?? ""), -1);
 
   const refreshed = await refreshActiveUserForPurchase(
     c.get("storage"),
@@ -282,6 +283,7 @@ purchase.post("/purchase/:option_code", async (c) => {
         qrisAmount,
         familyCode,
         variantCode,
+        overwriteAmount,
       );
       return renderPurchaseResult(c, session, out.title, out.result, out.qrisCode);
     } catch (e) {
@@ -302,6 +304,7 @@ purchase.post("/purchase/:option_code", async (c) => {
       optionCode,
       familyCode,
       variantCode,
+      overwriteAmount,
       createdAt: Math.floor(Date.now() / 1000),
     });
 

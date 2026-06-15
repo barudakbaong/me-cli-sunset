@@ -156,6 +156,11 @@ export async function executeDecoyPurchase(
   return { title: "Metode invalid", result: { message: method } };
 }
 
+export function resolvePurchaseAmount(defaultPrice: number, overwriteAmount = -1): number {
+  if (overwriteAmount >= 0) return overwriteAmount;
+  return defaultPrice;
+}
+
 export async function executeOptionPurchase(
   rt: PurchaseRuntime,
   storage: StorageBackend,
@@ -169,6 +174,7 @@ export async function executeOptionPurchase(
   qrisAmount: number,
   familyCode = "",
   variantCode = "",
+  overwriteAmount = -1,
 ): Promise<PurchaseExecutionResult> {
   const pkg = await engsel.getPackage(rt.tokens.id_token, optionCode, familyCode, variantCode);
   if (!pkg) {
@@ -195,14 +201,16 @@ export async function executeOptionPurchase(
     };
   }
 
+  const amount = resolvePurchaseAmount(item.item_price, overwriteAmount);
+
   if (method === "balance") {
-    return executeBalancePurchase(rt, [item], resolvedPaymentFor, item.item_price);
+    return executeBalancePurchase(rt, [item], resolvedPaymentFor, amount);
   }
   if (method === "qris") {
-    return executeQrisPurchase(rt, [item], resolvedPaymentFor, item.item_price);
+    return executeQrisPurchase(rt, [item], resolvedPaymentFor, amount);
   }
   if (method in EWALLET_FORM_METHODS) {
-    return executeEwalletPurchase(rt, [item], method, walletNumber, resolvedPaymentFor, item.item_price);
+    return executeEwalletPurchase(rt, [item], method, walletNumber, resolvedPaymentFor, amount);
   }
   if (method.startsWith("decoy_")) {
     return executeDecoyPurchase(rt, storage, username, subscriptionType, pkg, method, resolvedPaymentFor, qrisAmount);

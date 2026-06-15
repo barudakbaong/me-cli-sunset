@@ -124,6 +124,7 @@ export async function processPurchaseJob(env: Env, msg: PurchaseQueueMessage): P
           msg.qrisAmount,
           msg.familyCode ?? "",
           msg.variantCode ?? "",
+          msg.overwriteAmount ?? -1,
         );
       }
     }

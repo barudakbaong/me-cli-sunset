@@ -807,7 +807,9 @@ pre {
   color: #475569 !important;
 }
 .theme-light .text-emerald-300 { color: #059669 !important; }
+.theme-light .text-emerald-600 { color: #059669 !important; }
 .theme-light .text-amber-300 { color: #d97706 !important; }
+.theme-light .text-amber-600 { color: #d97706 !important; }
 .theme-light .text-sky-300 { color: #0284c7 !important; }
 .theme-light .text-fuchsia-300 { color: #c026d3 !important; }
 .theme-light .text-red-400 { color: #dc2626 !important; }

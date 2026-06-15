@@ -40,17 +40,19 @@
 
       {% if result.data.details %}
       <div class="mt-4">
-        <div class="text-xs text-slate-500 uppercase mb-2">Item Dibeli</div>
+        <div class="text-xs text-slate-500 uppercase tracking-wide mb-2">Item Dibeli</div>
         <div class="space-y-2">
           {% for item in result.data.details %}
-          <div class="bg-slate-800/50 rounded-lg p-3 border border-slate-700/50">
-            <div class="flex justify-between items-start">
-              <div class="font-medium text-slate-200">{{ item.name }}</div>
-              <div class="text-sm font-mono text-emerald-400">Rp {{ "{:,}".format(item.amount).replace(',', '.') }}</div>
+          <div class="neu-inset-card rounded-xl p-3">
+            <div class="flex justify-between items-start gap-3">
+              <div class="font-medium text-slate-200 theme-light:text-slate-800 min-w-0 leading-snug">{{ item.name }}</div>
+              <div class="neu-box-sm px-3 py-1.5 rounded-xl shrink-0">
+                <div class="text-sm font-mono font-semibold text-emerald-400 theme-light:text-emerald-600 whitespace-nowrap">Rp {{ "{:,}".format(item.amount).replace(',', '.') }}</div>
+              </div>
             </div>
-            <div class="flex justify-between items-center mt-1">
-              <div class="text-xs text-slate-400 font-mono">{{ item.code[:15] }}...</div>
-              <div class="text-xs {% if item.status == 'SUCCESS' %}text-emerald-400{% else %}text-amber-400{% endif %}">{{ item.status }}</div>
+            <div class="flex justify-between items-center gap-2 mt-2">
+              <div class="text-xs text-slate-400 font-mono truncate min-w-0">{{ item.code[:15] }}...</div>
+              <span class="neu-pill text-xs px-2.5 py-0.5 shrink-0 {% if item.status == 'SUCCESS' %}text-emerald-400 theme-light:text-emerald-600{% else %}text-amber-400 theme-light:text-amber-600{% endif %}">{{ item.status }}</span>
             </div>
           </div>
           {% endfor %}
@@ -58,9 +60,9 @@
       </div>
       {% endif %}
 
-      <div class="pt-2 mt-2 border-t border-slate-700/50 flex justify-between items-center">
+      <div class="neu-inset-card rounded-xl px-3 py-2.5 mt-3 flex justify-between items-center gap-3">
         <div class="text-sm font-medium text-slate-400">Total</div>
-        <div class="text-lg font-bold font-mono text-slate-100">Rp {{ "{:,}".format(result.data.total_amount | default(0)).replace(',', '.') }}</div>
+        <div class="text-lg font-bold font-mono text-slate-100 theme-light:text-slate-800">Rp {{ "{:,}".format(result.data.total_amount | default(0)).replace(',', '.') }}</div>
       </div>
     </div>
     

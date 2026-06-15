@@ -57,6 +57,34 @@ describe("MyXL templates", () => {
     expect(html).toContain("FAM-123");
   });
 
+  it("renders purchase result items with neumorphic styling", () => {
+    const html = renderLayout("purchase_result", new Request("http://localhost/purchase/OPT1"), {
+      page_title: "Pembelian Pulsa",
+      title: "Pembelian Pulsa",
+      result_json: "{}",
+      result_success: true,
+      result_has_qr: false,
+      has_qris_img: false,
+      has_result_data: true,
+      has_result_details: true,
+      transaction_code: "TRX-001",
+      payment_method: "BALANCE",
+      total_amount_rp: "Rp 100.000",
+      result_details: [
+        {
+          name: "myPRIO Silver Talk+",
+          amount_rp: "Rp 100.000",
+          code_short: "U0NfXytz3XbzYxN...",
+          status: "SUCCESS",
+          status_success: true,
+        },
+      ],
+    });
+    expect(html).toContain("Item Dibeli");
+    expect(html).toContain("neu-inset-card");
+    expect(html).toContain("myPRIO Silver Talk+");
+  });
+
   it("renders purchase result with pending job poll", () => {
     const html = renderLayout("purchase_result", new Request("http://localhost/purchase/OPT1"), {
       page_title: "Pembelian",

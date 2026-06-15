@@ -91,7 +91,10 @@
   {{/has_result_data}}
 
   {{^has_result_data}}
-  <div class="alert-error mb-4">Gagal mengeksekusi pembelian / Format salah</div>
+  <div class="alert-error mb-4">
+    {{#has_error_message}}{{error_message}}{{/has_error_message}}
+    {{^has_error_message}}Gagal mengeksekusi pembelian. Response API tidak berisi data transaksi.{{/has_error_message}}
+  </div>
   <details>
     <summary class="cursor-pointer text-xs font-semibold text-slate-500 hover:text-slate-300">Tampilkan Detail (JSON)</summary>
     <pre class="text-[0.65rem] overflow-x-auto bg-[#0f172a] rounded-xl p-3 mt-3 border border-slate-700/50 shadow-inner">{{result_json}}</pre>

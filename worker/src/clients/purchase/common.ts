@@ -2,7 +2,7 @@ import type { FetchFn } from "../ciam";
 import type { MyXlClientConfig } from "../config";
 import { hostFromUrl } from "../config";
 import type { EngselClient } from "../engsel";
-import { javaLikeTimestamp } from "../time";
+import { GMT7_OFFSET_MIN, javaLikeTimestamp } from "../time";
 import { decryptApiResponse, encryptSignXdata } from "../xdata";
 import { buildEncryptedField, makeXSignaturePayment, randomIvHex16 } from "../../crypto/crypto-helper";
 import type { MyXlTokens } from "../../myxl/accounts";
@@ -110,7 +110,7 @@ export async function postSignedSettlement(
     "x-signature-time": String(sigTimeSec),
     "x-signature": xSig,
     "x-request-id": crypto.randomUUID(),
-    "x-request-at": javaLikeTimestamp(new Date(sigTimeSec * 1000)),
+    "x-request-at": javaLikeTimestamp(new Date(sigTimeSec * 1000), { offsetMinutes: GMT7_OFFSET_MIN }),
     "x-version-app": "8.9.0",
   };
 

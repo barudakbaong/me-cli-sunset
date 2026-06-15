@@ -1,7 +1,7 @@
 import type { MyXlClientConfig } from "./config";
 import { hostFromUrl } from "./config";
 import { decryptApiResponse, encryptSignXdata } from "./xdata";
-import { javaLikeTimestamp } from "./time";
+import { GMT7_OFFSET_MIN, javaLikeTimestamp } from "./time";
 
 import type { FetchFn } from "./ciam";
 
@@ -44,7 +44,7 @@ export function createEngselClient(options: EngselClientOptions) {
       "x-signature-time": String(sigTimeSec),
       "x-signature": signed.x_signature,
       "x-request-id": crypto.randomUUID(),
-      "x-request-at": javaLikeTimestamp(now),
+      "x-request-at": javaLikeTimestamp(now, { offsetMinutes: GMT7_OFFSET_MIN }),
       "x-version-app": "8.9.0",
     };
 

@@ -1,4 +1,5 @@
 import type { PaymentItem } from "../clients/purchase/types";
+import { extractApiErr } from "./family-loop-sse";
 import { formatRp } from "../ssr/filters";
 
 export function buildPaymentItem(pkg: Record<string, unknown>): PaymentItem {
@@ -40,6 +41,8 @@ export interface PurchaseResultContext {
   raw_qr_code?: string;
   job_pending?: boolean;
   job_id?: string;
+  error_message?: string;
+  has_error_message: boolean;
 }
 
 function truncateCode(code: string, max = 15): string {
@@ -58,6 +61,7 @@ export function formatPurchaseResult(
   const hasQr = Boolean(qrisCode ?? obj?.qr_code);
   const qr = qrisCode ?? (obj?.qr_code ? String(obj.qr_code) : undefined);
   const success = obj?.status === "SUCCESS" || hasQr;
+  const errorMessage = success ? undefined : extractApiErr(result);
 
   const details = (data?.details as Record<string, unknown>[] | undefined) ?? [];
   const formattedDetails = details.map((item) => {
@@ -88,5 +92,7 @@ export function formatPurchaseResult(
     raw_qr_code: qr,
     job_pending: extras.jobPending,
     job_id: extras.jobId,
+    error_message: errorMessage,
+    has_error_message: Boolean(errorMessage),
   };
 }

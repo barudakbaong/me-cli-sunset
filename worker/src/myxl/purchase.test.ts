@@ -28,4 +28,14 @@ describe("purchase helpers", () => {
     expect(ctx.job_pending).toBe(true);
     expect(ctx.job_id).toBe("j1");
   });
+
+  it("formatPurchaseResult surfaces API error without data", () => {
+    const ctx = formatPurchaseResult("Pembelian Pulsa", {
+      status: "FAILED",
+      message: "Format salah",
+    });
+    expect(ctx.has_result_data).toBe(false);
+    expect(ctx.error_message).toContain("Format salah");
+    expect(ctx.has_error_message).toBe(true);
+  });
 });

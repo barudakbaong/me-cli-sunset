@@ -173,6 +173,15 @@ export async function executeOptionPurchase(
     return { title: "Tidak ditemukan", result: { message: `Option ${optionCode} tidak ada.` } };
   }
   const item = buildPaymentItem(pkg);
+  if (!item.token_confirmation) {
+    return {
+      title: "Data paket tidak lengkap",
+      result: {
+        status: "FAILED",
+        message: "token_confirmation kosong. Muat ulang halaman paket lalu coba lagi.",
+      },
+    };
+  }
 
   if (method === "balance") {
     return executeBalancePurchase(rt, [item], paymentFor, item.item_price);

@@ -1,4 +1,5 @@
 import { cbc } from "@noble/ciphers/aes";
+import { pkcs7Pad } from "./padding";
 import {
   base64Decode,
   base64Encode,
@@ -217,7 +218,7 @@ export async function buildEncryptedField(
 ): Promise<string> {
   const key = utf8Encode(secrets.encryptedFieldKey);
   const iv = utf8Encode(ivHex16);
-  const ct = aesCbcEncrypt(key, iv, new Uint8Array(0));
+  const ct = aesCbcEncrypt(key, iv, pkcs7Pad(new Uint8Array(0)));
   const encoded = urlsafeB64 ? urlSafeBase64Encode(ct) : base64Encode(ct);
   return encoded + ivHex16;
 }

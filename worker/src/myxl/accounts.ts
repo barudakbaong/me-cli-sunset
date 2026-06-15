@@ -290,6 +290,29 @@ export async function getActiveUserSafe(
   }
 }
 
+/** Always refresh CIAM tokens — required before payment signatures. */
+export async function refreshActiveUserForPurchase(
+  storage: StorageBackend,
+  username: string,
+  clients: MyXlClients,
+): Promise<ActiveUser | null> {
+  const entries = await loadRefreshTokens(storage, username);
+  if (!entries.length) return null;
+
+  let number: number | null = null;
+  const activeRaw = await getTextBlob(storage, username, USER_ACTIVE_NUMBER);
+  if (activeRaw?.trim() && /^\d+$/.test(activeRaw.trim())) {
+    number = Number.parseInt(activeRaw.trim(), 10);
+  }
+
+  const entry = (number != null ? entries.find((rt) => rt.number === number) : undefined) ?? entries[0];
+  try {
+    return await buildActiveUser(storage, username, entry.number, entry, clients);
+  } catch {
+    return null;
+  }
+}
+
 /** Load tokens for a specific MSISDN without changing the active account. */
 export async function getAccountForMsisdn(
   storage: StorageBackend,

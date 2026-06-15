@@ -39,7 +39,7 @@ export function formatPackageDetail(pkg: Record<string, unknown>, code: string) 
     fam_name: fam.name ?? "",
     variant_name: variant ? String(variant.name ?? "") : "",
     has_variant: Boolean(variant),
-    payment_for: fam.payment_for ?? "",
+    payment_for: String(fam.payment_for ?? "BUY_PACKAGE"),
     plan_type: fam.plan_type ?? "",
     is_enterprise: Boolean(fam.is_enterprise),
     opt_order: opt.order ?? 0,
@@ -70,7 +70,7 @@ export function formatFamilyDetail(family: Record<string, unknown>, code: string
   return {
     code,
     fam_name: fam.name ?? "",
-    payment_for: fam.payment_for ?? "",
+    payment_for: String(fam.payment_for ?? "BUY_PACKAGE"),
     plan_type: fam.plan_type ?? "",
     has_variants: variants.length > 0,
     variants,

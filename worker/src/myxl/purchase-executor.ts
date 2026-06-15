@@ -10,7 +10,7 @@ import {
 import type { EngselClient } from "../clients/engsel";
 import type { StorageBackend } from "../storage/types";
 import { makeCustomDecoyItem, makeDecoyItem } from "./decoy";
-import { buildPaymentItem } from "./purchase";
+import { buildPaymentItem, paymentForFromPackage } from "./purchase";
 
 export interface PurchaseExecutionResult {
   title: string;
@@ -173,6 +173,7 @@ export async function executeOptionPurchase(
     return { title: "Tidak ditemukan", result: { message: `Option ${optionCode} tidak ada.` } };
   }
   const item = buildPaymentItem(pkg);
+  const resolvedPaymentFor = paymentForFromPackage(pkg, paymentFor);
   if (!item.token_confirmation) {
     return {
       title: "Data paket tidak lengkap",
@@ -184,16 +185,16 @@ export async function executeOptionPurchase(
   }
 
   if (method === "balance") {
-    return executeBalancePurchase(rt, [item], paymentFor, item.item_price);
+    return executeBalancePurchase(rt, [item], resolvedPaymentFor, item.item_price);
   }
   if (method === "qris") {
-    return executeQrisPurchase(rt, [item], paymentFor, item.item_price);
+    return executeQrisPurchase(rt, [item], resolvedPaymentFor, item.item_price);
   }
   if (method in EWALLET_FORM_METHODS) {
-    return executeEwalletPurchase(rt, [item], method, walletNumber, paymentFor, item.item_price);
+    return executeEwalletPurchase(rt, [item], method, walletNumber, resolvedPaymentFor, item.item_price);
   }
   if (method.startsWith("decoy_")) {
-    return executeDecoyPurchase(rt, storage, username, subscriptionType, pkg, method, paymentFor, qrisAmount);
+    return executeDecoyPurchase(rt, storage, username, subscriptionType, pkg, method, resolvedPaymentFor, qrisAmount);
   }
   return { title: "Metode invalid", result: { message: `Method '${method}' tidak dikenal.` } };
 }

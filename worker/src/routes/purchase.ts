@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { refreshActiveUserForPurchase } from "../myxl/accounts";
 import { EWALLET_FORM_METHODS, isAsyncPurchaseMethod } from "../clients/purchase/types";
 import { createFamilyLoopSseResponse, type FamilyLoopParams } from "../myxl/family-loop-runner";
 import { executeOptionPurchase } from "../myxl/purchase-executor";
@@ -227,7 +228,7 @@ purchase.post("/purchase/hot2", async (c) => {
 });
 
 purchase.post("/purchase/:option_code", async (c) => {
-  const session = await requireActiveSession(c);
+  let session = await requireActiveSession(c);
   if (session instanceof Response) return session;
 
   const optionCode = c.req.param("option_code");
@@ -236,6 +237,20 @@ purchase.post("/purchase/:option_code", async (c) => {
   const paymentFor = String(body.payment_for ?? "BUY_PACKAGE");
   const walletNumber = String(body.wallet_number ?? "");
   const qrisAmount = parseFormInt(String(body.qris_amount ?? ""), -1);
+
+  const refreshed = await refreshActiveUserForPurchase(
+    c.get("storage"),
+    session.webuiUser.username,
+    session.clients,
+  );
+  if (!refreshed) {
+    return renderAppErrorPage(
+      c,
+      { title: "Sesi MyXL expired", message: "Gagal refresh token. Login ulang akun MyXL." },
+      401,
+    );
+  }
+  session = { ...session, activeUser: refreshed };
 
   if (method === "ewallet_dana") {
     const err = validateDanaNumber(walletNumber);

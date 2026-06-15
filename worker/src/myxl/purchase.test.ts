@@ -1,7 +1,26 @@
 import { describe, expect, it } from "vitest";
-import { buildPaymentItem, formatPurchaseResult } from "./purchase";
+import { buildPaymentItem, formatPurchaseResult, normalizePaymentItem, paymentForFromPackage } from "./purchase";
 
 describe("purchase helpers", () => {
+  it("paymentForFromPackage falls back when family payment_for is empty", () => {
+    expect(paymentForFromPackage({ package_family: { payment_for: "" } })).toBe("BUY_PACKAGE");
+    expect(paymentForFromPackage({ package_family: { payment_for: "SHARE_PACKAGE" } })).toBe("SHARE_PACKAGE");
+  });
+
+  it("normalizePaymentItem coerces integer prices", () => {
+    const item = normalizePaymentItem({
+      item_code: " OPT1 ",
+      product_type: "",
+      item_price: 25000.9,
+      item_name: "Paket",
+      tax: 0,
+      token_confirmation: " tok ",
+    });
+    expect(item.item_price).toBe(25000);
+    expect(item.item_code).toBe("OPT1");
+    expect(item.token_confirmation).toBe("tok");
+  });
+
   it("buildPaymentItem maps package detail", () => {
     const item = buildPaymentItem({
       token_confirmation: "abc",

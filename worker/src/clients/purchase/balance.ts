@@ -1,4 +1,5 @@
 import type { PaymentItem, SettlementOptions } from "./types";
+import { normalizePaymentItem } from "../../myxl/purchase";
 import {
   buildBalanceEncryptedFields,
   postSignedSettlement,
@@ -6,6 +7,11 @@ import {
   resolveAmount,
   type PurchaseRuntime,
 } from "./common";
+
+function resolvePaymentFor(value: string | undefined): string {
+  const trimmed = String(value ?? "").trim();
+  return trimmed || "BUY_PACKAGE";
+}
 
 export async function settlementBalance(
   rt: PurchaseRuntime,
@@ -23,6 +29,8 @@ export async function settlementBalance(
   const prep = await prepareSettlement(rt, items, tokenIdx);
   if (!prep.ok) return prep.error;
 
+  const paymentFor = resolvePaymentFor(options.paymentFor);
+  const normalizedItems = items.map((item) => normalizePaymentItem(item));
   const encrypted = await buildBalanceEncryptedFields(rt);
   const path = "payments/api/v8/settlement-multipayment";
   const payload: Record<string, unknown> = {
@@ -49,7 +57,7 @@ export async function settlementBalance(
     akrab_parent_alias: "",
     referral_unique_code: "",
     coupon: "",
-    payment_for: options.paymentFor,
+    payment_for: paymentFor,
     with_upsell: false,
     topup_number: options.topupNumber ?? "",
     stage_token: options.stageToken ?? "",
@@ -61,7 +69,7 @@ export async function settlementBalance(
     wallet_number: "",
     encrypted_authentication_id: encrypted.encrypted_authentication_id,
     additional_data: {
-      original_price: items[items.length - 1].item_price,
+      original_price: normalizedItems[normalizedItems.length - 1].item_price,
       is_spend_limit_temporary: false,
       migration_type: "",
       akrab_m2m_group_id: "false",
@@ -80,9 +88,9 @@ export async function settlementBalance(
       has_bonus: false,
       discount_promo: 0,
     },
-    total_amount: amount,
+    total_amount: Math.trunc(amount),
     is_using_autobuy: false,
-    items,
+    items: normalizedItems,
   };
 
   return postSignedSettlement(rt, {
@@ -92,7 +100,7 @@ export async function settlementBalance(
     tokenPayment: prep.tokenPayment,
     tsToSign: prep.tsToSign,
     paymentMethod: "BALANCE",
-    paymentFor: options.paymentFor,
+    paymentFor,
   });
 }
 

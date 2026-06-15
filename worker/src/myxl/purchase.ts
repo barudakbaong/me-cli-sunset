@@ -2,16 +2,35 @@ import type { PaymentItem } from "../clients/purchase/types";
 import { extractApiErr } from "./family-loop-sse";
 import { formatRp } from "../ssr/filters";
 
+export function paymentForFromPackage(pkg: Record<string, unknown>, fallback = "BUY_PACKAGE"): string {
+  const fam = (pkg.package_family as Record<string, unknown> | undefined) ?? {};
+  const raw = String(fam.payment_for ?? "").trim();
+  const fb = fallback.trim() || "BUY_PACKAGE";
+  return raw || fb;
+}
+
+export function normalizePaymentItem(item: PaymentItem): PaymentItem {
+  const price = Math.trunc(Number(item.item_price));
+  return {
+    item_code: String(item.item_code ?? "").trim(),
+    product_type: String(item.product_type ?? ""),
+    item_price: Number.isFinite(price) && price >= 0 ? price : 0,
+    item_name: String(item.item_name ?? ""),
+    tax: Math.trunc(Number(item.tax ?? 0)),
+    token_confirmation: String(item.token_confirmation ?? "").trim(),
+  };
+}
+
 export function buildPaymentItem(pkg: Record<string, unknown>): PaymentItem {
   const opt = (pkg.package_option as Record<string, unknown>) ?? {};
-  return {
+  return normalizePaymentItem({
     item_code: String(opt.package_option_code ?? ""),
     product_type: "",
     item_price: Number(opt.price ?? 0),
     item_name: String(opt.name ?? ""),
     tax: 0,
     token_confirmation: String(pkg.token_confirmation ?? ""),
-  };
+  });
 }
 
 export function qrisImageUrl(qrisCode: string): string {

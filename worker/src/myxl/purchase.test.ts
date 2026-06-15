@@ -1,16 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { resolvePurchaseAmount } from "./purchase-executor";
 import { buildPaymentItem, formatPurchaseResult } from "./purchase";
 
 describe("purchase helpers", () => {
-  it("resolvePurchaseAmount keeps default when overwrite is empty", () => {
-    expect(resolvePurchaseAmount(25000, -1)).toBe(25000);
-  });
-
-  it("resolvePurchaseAmount uses custom overwrite", () => {
-    expect(resolvePurchaseAmount(25000, 19900)).toBe(19900);
-  });
-
   it("buildPaymentItem maps package detail", () => {
     const item = buildPaymentItem({
       token_confirmation: "abc",

@@ -335,7 +335,6 @@ def buy_one(
     payment_for: str = Form("BUY_PACKAGE"),
     wallet_number: str = Form(""),
     qris_amount: int = Form(-1),
-    overwrite_amount: int = Form(-1),
 ):
     user = get_active_user_safe()
     if not user:
@@ -350,14 +349,13 @@ def buy_one(
 
     item = _build_item(pkg)
     items = [item]
-    amount = overwrite_amount if overwrite_amount >= 0 else item["item_price"]
 
     try:
         if method == "balance":
             res = settlement_balance(
                 AuthInstance.api_key, user["tokens"], items,
                 payment_for=payment_for, ask_overwrite=False,
-                overwrite_amount=amount,
+                overwrite_amount=item["item_price"],
             )
             return render(request, "purchase_result.html", title="Pembelian Pulsa", result=res, qris_img=None)
 
@@ -365,7 +363,7 @@ def buy_one(
             tx = settlement_qris(
                 AuthInstance.api_key, user["tokens"], items,
                 payment_for=payment_for, ask_overwrite=False,
-                overwrite_amount=amount,
+                overwrite_amount=item["item_price"],
             )
             if not tx or not isinstance(tx, str):
                 return render(request, "purchase_result.html", title="QRIS gagal", result=tx, qris_img=None)
@@ -385,7 +383,7 @@ def buy_one(
                 AuthInstance.api_key, user["tokens"], items,
                 wallet_number=wallet_number, payment_method=pm,
                 payment_for=payment_for, ask_overwrite=False,
-                overwrite_amount=amount,
+                overwrite_amount=item["item_price"],
             )
             return render(request, "purchase_result.html", title=f"Bayar via {pm}", result=res, qris_img=None)
 

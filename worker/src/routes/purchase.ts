@@ -236,7 +236,6 @@ purchase.post("/purchase/:option_code", async (c) => {
   const paymentFor = String(body.payment_for ?? "BUY_PACKAGE");
   const walletNumber = String(body.wallet_number ?? "");
   const qrisAmount = parseFormInt(String(body.qris_amount ?? ""), -1);
-  const overwriteAmount = parseFormInt(String(body.overwrite_amount ?? ""), -1);
 
   if (method === "ewallet_dana") {
     const err = validateDanaNumber(walletNumber);
@@ -264,7 +263,6 @@ purchase.post("/purchase/:option_code", async (c) => {
         paymentFor,
         walletNumber,
         qrisAmount,
-        overwriteAmount,
       );
       return renderPurchaseResult(c, session, out.title, out.result, out.qrisCode);
     } catch (e) {
@@ -282,7 +280,6 @@ purchase.post("/purchase/:option_code", async (c) => {
       paymentFor,
       walletNumber,
       qrisAmount,
-      overwriteAmount,
       optionCode,
       createdAt: Math.floor(Date.now() / 1000),
     });

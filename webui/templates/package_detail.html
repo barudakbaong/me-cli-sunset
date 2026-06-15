@@ -113,11 +113,6 @@
       <label class="label">Nomor E-Wallet (08...)</label>
       <input class="form-input" type="text" name="wallet_number" pattern="08\d{7,12}">
     </div>
-    <div>
-      <label class="label">Rewrite Harga (opsional)</label>
-      <input class="form-input" type="number" name="overwrite_amount" min="0" placeholder="{{ opt.price }}">
-      <p class="text-xs text-slate-500 mt-1">Kosong = harga asli ({{ opt.price | rp }}). Isi angka baru untuk override total pembayaran — sama seperti opsi overwrite di CLI.</p>
-    </div>
     <div id="qris-amount" style="display:none">
       <label class="label">Override Amount (kosong = price + decoy price; trial-error)</label>
       <input class="form-input" type="number" name="qris_amount" min="0" placeholder="(opsional)">

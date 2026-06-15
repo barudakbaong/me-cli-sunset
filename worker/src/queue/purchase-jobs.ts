@@ -14,7 +14,6 @@ export interface PurchaseJobPayload {
   paymentFor: string;
   walletNumber: string;
   qrisAmount: number;
-  overwriteAmount?: number;
   optionCode?: string;
   hot2Idx?: number;
   createdAt: number;

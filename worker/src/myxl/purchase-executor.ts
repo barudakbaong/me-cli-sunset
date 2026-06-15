@@ -156,11 +156,6 @@ export async function executeDecoyPurchase(
   return { title: "Metode invalid", result: { message: method } };
 }
 
-export function resolvePurchaseAmount(defaultPrice: number, overwriteAmount = -1): number {
-  if (overwriteAmount >= 0) return overwriteAmount;
-  return defaultPrice;
-}
-
 export async function executeOptionPurchase(
   rt: PurchaseRuntime,
   storage: StorageBackend,
@@ -172,23 +167,21 @@ export async function executeOptionPurchase(
   paymentFor: string,
   walletNumber: string,
   qrisAmount: number,
-  overwriteAmount = -1,
 ): Promise<PurchaseExecutionResult> {
   const pkg = await engsel.getPackage(rt.tokens.id_token, optionCode);
   if (!pkg) {
     return { title: "Tidak ditemukan", result: { message: `Option ${optionCode} tidak ada.` } };
   }
   const item = buildPaymentItem(pkg);
-  const amount = resolvePurchaseAmount(item.item_price, overwriteAmount);
 
   if (method === "balance") {
-    return executeBalancePurchase(rt, [item], paymentFor, amount);
+    return executeBalancePurchase(rt, [item], paymentFor, item.item_price);
   }
   if (method === "qris") {
-    return executeQrisPurchase(rt, [item], paymentFor, amount);
+    return executeQrisPurchase(rt, [item], paymentFor, item.item_price);
   }
   if (method in EWALLET_FORM_METHODS) {
-    return executeEwalletPurchase(rt, [item], method, walletNumber, paymentFor, amount);
+    return executeEwalletPurchase(rt, [item], method, walletNumber, paymentFor, item.item_price);
   }
   if (method.startsWith("decoy_")) {
     return executeDecoyPurchase(rt, storage, username, subscriptionType, pkg, method, paymentFor, qrisAmount);

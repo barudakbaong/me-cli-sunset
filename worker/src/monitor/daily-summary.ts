@@ -1,12 +1,14 @@
 import type { Env } from "../env";
 import { wibTodayAtUnix } from "../clients/time";
 import { getUser } from "../auth/users";
+import { getAccountForMsisdn, listAccounts } from "../myxl/accounts";
+import { createMyXlClients } from "../myxl/clients";
 import { GLOBAL_MONITOR_DAILY_SUMMARY } from "../storage/keys";
 import type { StorageBackend } from "../storage/types";
 import { getTextBlob } from "../myxl/blob";
 import { humanizeBytes } from "../ssr/filters";
 import { logLine } from "./log";
-import { loadQuotaCache } from "./quota-cache";
+import { loadQuotaCache, updateAccountCache } from "./quota-cache";
 import { resolveSendConfig, sendTelegram } from "./telegram-send";
 import type { TelegramConfig } from "../telegram/config";
 
@@ -49,6 +51,29 @@ export async function maybeSendDailySummary(
   const state = await loadSummaryState(storage);
   const last = state[username] ?? 0;
   if (last >= targetTs) return;
+
+  // Fetch fresh quota data from MyXL API before sending summary
+  let clients;
+  try {
+    clients = createMyXlClients(env, storage, username);
+    const accounts = await listAccounts(storage, username);
+    for (const acc of accounts) {
+      const msisdn = acc.number;
+      if (!msisdn) continue;
+      try {
+        const user = await getAccountForMsisdn(storage, username, msisdn, clients);
+        if (!user) continue;
+        const balance = await clients.engsel.getBalance(user.tokens.id_token);
+        const data = await clients.engsel.getQuotaDetails(user.tokens.id_token);
+        const quotas = ((data?.quotas as Record<string, unknown>[]) ?? []) as Record<string, unknown>[];
+        await updateAccountCache(storage, username, msisdn, balance, quotas);
+      } catch (e) {
+        await logLine(storage, username, `[daily-summary] fetch ${msisdn} err: ${e}`);
+      }
+    }
+  } catch (e) {
+    await logLine(storage, username, `[daily-summary] client init err: ${e}`);
+  }
 
   const cache = await loadQuotaCache(storage, username);
   if (!Object.keys(cache).length) return;

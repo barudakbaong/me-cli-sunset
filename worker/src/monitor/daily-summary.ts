@@ -6,11 +6,19 @@ import { createMyXlClients } from "../myxl/clients";
 import { GLOBAL_MONITOR_DAILY_SUMMARY } from "../storage/keys";
 import type { StorageBackend } from "../storage/types";
 import { getTextBlob } from "../myxl/blob";
-import { humanizeBytes } from "../ssr/filters";
 import { logLine } from "./log";
-import { loadQuotaCache, updateAccountCache } from "./quota-cache";
+import { updateAccountCache } from "./quota-cache";
 import { resolveSendConfig, sendTelegram } from "./telegram-send";
 import type { TelegramConfig } from "../telegram/config";
+import {
+  cardAgeFromDob,
+  chunkLines,
+  esc,
+  formatDateDmY,
+  formatDateIso,
+  formatPaketBlock,
+} from "../telegram/formatters";
+import { formatRp } from "../ssr/filters";
 
 type SummaryState = Record<string, number>;
 
@@ -52,65 +60,138 @@ export async function maybeSendDailySummary(
   const last = state[username] ?? 0;
   if (last >= targetTs) return;
 
-  // Fetch fresh quota data from MyXL API before sending summary
+  const cfg = await resolveSendConfig(env, storage, username);
+  const sendCfg = { bot_token: cfg.bot_token, chat_id: String(user.telegram_chat_id) };
+
   let clients;
   try {
     clients = createMyXlClients(env, storage, username);
-    const accounts = await listAccounts(storage, username);
-    for (const acc of accounts) {
-      const msisdn = acc.number;
-      if (!msisdn) continue;
-      try {
-        const user = await getAccountForMsisdn(storage, username, msisdn, clients);
-        if (!user) continue;
-        const balance = await clients.engsel.getBalance(user.tokens.id_token);
-        const data = await clients.engsel.getQuotaDetails(user.tokens.id_token);
-        const quotas = ((data?.quotas as Record<string, unknown>[]) ?? []) as Record<string, unknown>[];
-        await updateAccountCache(storage, username, msisdn, balance, quotas);
-      } catch (e) {
-        await logLine(storage, username, `[daily-summary] fetch ${msisdn} err: ${e}`);
-      }
-    }
   } catch (e) {
     await logLine(storage, username, `[daily-summary] client init err: ${e}`);
+    return;
   }
 
-  const cache = await loadQuotaCache(storage, username);
-  if (!Object.keys(cache).length) return;
+  const accounts = await listAccounts(storage, username);
+  if (!accounts.length) {
+    await logLine(storage, username, `[daily-summary] no accounts for ${username}`);
+    return;
+  }
 
-  const lines = ["<b>📊 Daily Quota Summary</b>\n"];
-  for (const [msisdn, data] of Object.entries(cache)) {
-    const bal = data.balance ?? {};
-    const remaining = bal.remaining;
-    const balStr =
-      remaining != null
-        ? `Rp ${Number(remaining).toLocaleString("id-ID")}`
-        : "-";
-    lines.push(`📱 <code>${msisdn}</code> · Pulsa: ${balStr}`);
+  let sentCount = 0;
+  for (const acc of accounts) {
+    const msisdn = acc.number;
+    if (!msisdn) continue;
 
-    const quotas = data.quotas ?? [];
-    for (const q of quotas.slice(0, 8)) {
-      const name = String(q.name ?? "-");
-      const benefits = (q.benefits as Record<string, unknown>[]) ?? [];
-      const parts: string[] = [];
-      for (const b of benefits.slice(0, 3)) {
-        const rem = Number(b.remaining ?? 0);
-        const tot = Number(b.total ?? 0);
-        const pct = tot ? (rem / tot) * 100 : 0;
-        const dt = String(b.data_type ?? "");
-        if (dt === "DATA") parts.push(`${humanizeBytes(rem)} (${pct.toFixed(0)}%)`);
-        else if (dt === "VOICE") parts.push(`${Math.round(rem / 60)}m (${pct.toFixed(0)}%)`);
-        else parts.push(`${rem} (${pct.toFixed(0)}%)`);
+    try {
+      const active = await getAccountForMsisdn(storage, username, msisdn, clients);
+      if (!active) {
+        await logLine(storage, username, `[daily-summary] cannot activate ${msisdn}`);
+        continue;
       }
-      lines.push(`  📦 ${name}: ${parts.length ? parts.join(", ") : "-"}`);
+
+      const lines: string[] = ["<b>Info Pelanggan</b>"];
+
+      // Profile
+      try {
+        const profileData = (await clients.engsel.getProfile(active.tokens.access_token, active.tokens.id_token)) ?? {};
+        const prof = (profileData.profile as Record<string, unknown>) ?? {};
+        lines.push(`Umur Kartu : ${cardAgeFromDob(String(prof.dob ?? ""))}`);
+      } catch {
+        lines.push("Umur Kartu : -");
+      }
+
+      // Balance & credit
+      let balance: Record<string, unknown> = {};
+      let balData: Record<string, unknown> = {};
+      try {
+        const balWrap = await clients.engsel.sendApiRequest(
+          "api/v8/packages/balance-and-credit",
+          { is_enterprise: false, lang: "en" },
+          active.tokens.id_token,
+        );
+        balData =
+          balWrap && typeof balWrap === "object"
+            ? ((balWrap as Record<string, unknown>).data as Record<string, unknown>) ?? {}
+            : {};
+        balance = (balData.balance as Record<string, unknown>) ?? {};
+      } catch {
+        // proceed with empty
+      }
+
+      const graceEnd = balData.grace_end_date;
+      lines.push(`Aktif Hingga : ${formatDateIso(graceEnd ?? balance.expired_at)}`);
+
+      const subStatus = String(balData.subscription_status ?? balData.suspended_status ?? "ACTIVE");
+      lines.push(`Status Simcard : ${esc(subStatus)}`);
+
+      // Dukcapil
+      try {
+        const chk = await clients.famplan.validateMsisdn(active.tokens.id_token, String(active.number));
+        const registered =
+          chk && typeof chk === "object"
+            ? ((chk as Record<string, unknown>).data as Record<string, unknown> | undefined)?.is_registered
+            : undefined;
+        lines.push(
+          `Status Dukcapil : ${registered === true ? "Registered" : registered === false ? "Unregistered" : "-"}`,
+        );
+      } catch {
+        lines.push("Status Dukcapil : -");
+      }
+
+      lines.push(`Masa Aktif Kartu : ${formatDateDmY(balance.expired_at)}`);
+      if (balance.remaining != null) lines.push(`Pulsa : ${formatRp(balance.remaining)}`);
+
+      // Points (PREPAID)
+      if (active.subscription_type === "PREPAID") {
+        try {
+          const tier = await clients.engsel.getTieringInfo(active.tokens.id_token);
+          if (tier) {
+            lines.push(`Points : ${tier.current_point ?? 0} · Tier : ${tier.tier ?? 0}`);
+          }
+        } catch {
+          // skip
+        }
+      }
+
+      lines.push("");
+      lines.push("<b>Info Paket Aktif</b>");
+
+      // Quota details + update cache
+      let quotas: Record<string, unknown>[] = [];
+      try {
+        const res = await clients.engsel.getQuotaDetailsRaw(active.tokens.id_token);
+        if (res && (res.status === "SUCCESS" || String(res.code) === "000")) {
+          quotas = ((res.data as Record<string, unknown> | undefined)?.quotas as Record<string, unknown>[]) ?? [];
+        }
+      } catch {
+        // skip
+      }
+
+      if (!quotas.length) {
+        lines.push("Tidak ada paket aktif.");
+      } else {
+        for (const q of quotas) lines.push(...formatPaketBlock(q), "");
+      }
+
+      // Update cache so WebUI also shows fresh data
+      await updateAccountCache(storage, username, msisdn, balance, quotas);
+
+      // Send as separate message(s) per account
+      const chunks = chunkLines(lines.filter((l, i, arr) => !(l === "" && i === arr.length - 1)));
+      for (const chunk of chunks) {
+        await sendTelegram(env, storage, chunk, { cfg: sendCfg });
+      }
+
+      sentCount++;
+      await logLine(storage, username, `[daily-summary] sent report for ${msisdn}`);
+    } catch (e) {
+      await logLine(storage, username, `[daily-summary] fetch ${msisdn} err: ${e}`);
     }
-    lines.push("");
   }
 
-  const cfg = await resolveSendConfig(env, storage, username);
-  const sendCfg = { bot_token: cfg.bot_token, chat_id: String(user.telegram_chat_id) };
-  await sendTelegram(env, storage, lines.join("\n"), { cfg: sendCfg });
-  state[username] = nowSec;
-  await saveSummaryState(storage, state);
-  await logLine(storage, username, `[${username}] daily summary sent to ${user.telegram_chat_id}`);
+  if (sentCount > 0) {
+    state[username] = nowSec;
+    await saveSummaryState(storage, state);
+    await logLine(storage, username, `[daily-summary] ${sentCount} report(s) sent to ${user.telegram_chat_id}`);
+  }
 }
